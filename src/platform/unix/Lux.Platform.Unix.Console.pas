@@ -8,7 +8,6 @@ interface
 uses
   SysUtils,
   BaseUnix,
-  Unix,
   Termio,
   Errors,
   Lux.Terminal.Errors;
@@ -44,6 +43,8 @@ function LuxUnixQueryWinSize(AFd: cint; out AColumns, ARows: Integer): Boolean;
 
 implementation
 
+function isatty(fd: cint): cint; cdecl; external 'c' name 'isatty';
+
 constructor ELuxUnixTerminal.CreateOp(const AOperation: string; AErrorCode: cint);
 begin
   FOperation := AOperation;
@@ -61,7 +62,7 @@ end;
 
 function LuxUnixIsTty(AFd: cint): Boolean;
 begin
-  Result := fpIsATTY(AFd) = 1;
+  Result := isatty(AFd) = 1;
 end;
 
 function LuxUnixQueryWinSize(AFd: cint; out AColumns, ARows: Integer): Boolean;
