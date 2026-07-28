@@ -83,9 +83,9 @@ var
   Fd: cint;
   Writer: TLuxUnixTerminalWriter;
   Expected, Data: RawByteString;
-  F: File of Byte;
-  B: Byte;
-  N: Integer;
+  ReadFd: cint;
+  N: TsSize;
+  Buf: array[0..255] of Byte;
 begin
   LuxSection('Writer file UTF-8');
   Path := GetTempDir + 'lux_unix_writer_utf8.txt';
@@ -104,19 +104,17 @@ begin
   end;
 
   Data := '';
-  AssignFile(F, Path);
-  Reset(F);
+  FillChar(Buf[0], SizeOf(Buf), 0);
+  ReadFd := FpOpen(PChar(Path), O_RdOnly);
+  LuxCheck(ReadFd >= 0, 'temp file reopened');
   try
-    N := 0;
-    while not Eof(F) do
-    begin
-      Read(F, B);
-      Inc(N);
-      SetLength(Data, N);
-      Data[N] := AnsiChar(B);
-    end;
+    N := FpRead(ReadFd, Buf[0], SizeOf(Buf));
+    LuxCheck(N >= 0, 'temp file read ok');
+    SetLength(Data, N);
+    if N > 0 then
+      Move(Buf[0], Data[1], N);
   finally
-    CloseFile(F);
+    FpClose(ReadFd);
   end;
   SysUtils.DeleteFile(Path);
   LuxCheck(Data = Expected, 'file contains UTF-8 bytes');
