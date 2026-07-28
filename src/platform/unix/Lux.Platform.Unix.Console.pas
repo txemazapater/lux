@@ -9,8 +9,7 @@ uses
   SysUtils,
   BaseUnix,
   Termio,
-  Errors,
-  Lux.Terminal.Errors;
+  Errors;
 
 type
   { Lightweight TTY capability snapshot (mirrors Windows caps where possible). }

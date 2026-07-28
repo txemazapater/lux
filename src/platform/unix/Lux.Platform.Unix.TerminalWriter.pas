@@ -32,6 +32,8 @@ type
 
 implementation
 
+function fsync(fd: cint): cint; cdecl; external 'c' name 'fsync';
+
 constructor TLuxUnixTerminalWriter.Create(AFd: cint; AOwnsFd: Boolean);
 begin
   inherited Create;
@@ -93,7 +95,7 @@ begin
   { fsync is often unsupported or undesirable on TTYs; only sync regular files. }
   if LuxUnixIsTty(FFd) then
     Exit;
-  if FpFSync(FFd) <> 0 then
+  if fsync(FFd) <> 0 then
   begin
     if FpGetErrno <> ESysEINVAL then
       raise ELuxUnixTerminal.CreateOp('fsync', FpGetErrno);
