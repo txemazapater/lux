@@ -22,4 +22,5 @@ Applications should keep the session alive for the whole render lifetime and fre
 
 - No Win32 code in `Lux.Renderer` / `Lux.Surface`
 - Redirected stdout is rejected at `Open` with `ELuxTerminalUnavailable`
-- Interactive demos require a real console; CI compiles the demo but does not require an interactive run
+- Interactive demos require a real console
+- GitHub Actions CI is Linux/portable only; Windows builds are validated locally

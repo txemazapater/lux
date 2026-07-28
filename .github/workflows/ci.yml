@@ -5,9 +5,13 @@ on:
     branches: [main]
   pull_request:
 
+# GitHub-hosted Windows runners cannot reliably install FPC for this project.
+# Windows builds and platform tests remain local developer workflows.
+# CI covers the portable Unix/Linux path only.
+
 jobs:
-  portable-ubuntu:
-    name: portable-ubuntu
+  portable-linux:
+    name: portable-linux
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -32,64 +36,3 @@ jobs:
 
       - name: Smoke-run hello_lux
         run: ./bin/hello_lux
-
-  windows:
-    name: windows
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Free Pascal 3.2.2
-        shell: powershell
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $fpc = $null
-          try {
-            choco install fpc --version=3.2.2 -y --no-progress
-          } catch {
-            Write-Host "Chocolatey fpc install failed: $_"
-          }
-          $fpc = Get-ChildItem -Path 'C:\FPC','C:\ProgramData\chocolatey\lib' -Recurse -Filter fpc.exe -ErrorAction SilentlyContinue |
-            Where-Object { $_.FullName -match 'x86_64|win64' } |
-            Select-Object -First 1 -ExpandProperty FullName
-          if (-not $fpc) {
-            $fpc = Get-ChildItem -Path 'C:\FPC','C:\ProgramData\chocolatey\lib' -Recurse -Filter fpc.exe -ErrorAction SilentlyContinue |
-              Select-Object -First 1 -ExpandProperty FullName
-          }
-          if (-not $fpc) {
-            $installer = Join-Path $env:RUNNER_TEMP 'fpc-3.2.2.win64.exe'
-            $url = 'https://sourceforge.net/projects/freepascal/files/Win64/3.2.2/fpc-3.2.2.win64.exe/download'
-            Invoke-WebRequest -Uri $url -OutFile $installer -UserAgent 'Wget'
-            Start-Process -FilePath $installer -ArgumentList '/VERYSILENT','/NORESTART','/DIR=C:\FPC\3.2.2' -Wait
-            $fpc = 'C:\FPC\3.2.2\bin\x86_64-win64\fpc.exe'
-          }
-          if (-not (Test-Path $fpc)) { throw "fpc.exe not found ($fpc)" }
-          $bin = Split-Path $fpc
-          Add-Content -Path $env:GITHUB_PATH -Value $bin
-          Add-Content -Path $env:GITHUB_ENV -Value "FPC=$fpc"
-          & $fpc -iV
-
-      - name: Portable isolation check
-        shell: powershell
-        run: powershell -ExecutionPolicy Bypass -File tools/check_portable.ps1
-
-      - name: Build hello_lux
-        shell: powershell
-        run: powershell -ExecutionPolicy Bypass -File tools/build.ps1 -Target hello
-
-      - name: Run portable tests
-        shell: powershell
-        run: powershell -ExecutionPolicy Bypass -File tools/test.ps1
-
-      - name: Build and run Windows platform tests
-        shell: powershell
-        run: powershell -ExecutionPolicy Bypass -File tools/test_windows.ps1
-
-      - name: Build windows_demo
-        shell: powershell
-        run: powershell -ExecutionPolicy Bypass -File tools/build.ps1 -Target windows-demo
-
-      - name: Smoke-run hello_lux
-        shell: powershell
-        run: .\bin\hello_lux.exe

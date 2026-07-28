@@ -33,7 +33,7 @@ Covered behaviour: console probe, VT enablement, UTF-8 code pages, `ILuxTerminal
 | Classic console | not separately instrumented in this session; demo used the host default console host via `Start-Process` |
 | Win32 (i386) | **not claimed** (not built) |
 
-CI workflow updated (Ubuntu portable job + Windows job, no `lazarus-version: recursive`). Green status depends on the next GitHub Actions run after push.
+CI on GitHub Actions is **Linux-only** (portable build + tests). Windows backend validation is local: see commands below.
 
 ## Commands
 

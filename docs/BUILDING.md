@@ -116,9 +116,11 @@ Build products land under `bin/` and are ignored by Git.
 
 ## Continuous integration
 
-GitHub Actions workflow `.github/workflows/ci.yml`:
+GitHub Actions (`.github/workflows/ci.yml`) runs **Linux only**:
 
-- `portable-ubuntu`: isolation check, build, portable tests, hello smoke run
-- `windows`: FPC 3.2.2 install (no Lazarus recursive setup), isolation check, portable tests, Windows platform tests, `windows_demo` compile, hello smoke run
+- portable isolation check
+- build `hello_lux`
+- portable unit tests
+- smoke-run `hello_lux`
 
-Interactive console demos are not required to pass in CI (stdout is typically redirected).
+Windows compilation, `windows_demo`, and Windows platform tests are **not** run on GitHub-hosted runners (FPC install there is unreliable for this project). Validate those locally with `tools\build.ps1` / `tools\test_windows.ps1`.

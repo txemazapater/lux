@@ -9,14 +9,15 @@ Goal: make the repository buildable and predictable.
 - Define source tree.
 - Add Free Pascal project files.
 - Add a minimal test runner.
-- Add Windows and Linux CI.
+- Add Linux CI (portable path on GitHub Actions).
 - Establish compiler switches and warning policy.
 - Add a `hello_lux` placeholder example.
 
 Exit criteria:
 
-- Clean checkout builds on Windows and Linux.
+- Clean checkout builds on Linux CI.
 - Tests execute from one documented command.
+- Windows builds remain a local developer workflow where applicable.
 
 ## Phase 1 - Portable rendering core
 
