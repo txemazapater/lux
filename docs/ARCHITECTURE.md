@@ -18,10 +18,11 @@ Applications
 - `core` depends only on the Free Pascal RTL.
 - `rendering` depends on `core`.
 - `rendering` may also use `terminal` writer interfaces and ANSI helpers (see `docs/adr/0001-renderer-depends-on-terminal.md`).
-- `events` depends on `core`.
+- `events` depends on `core` (and uses `SysUtils` for queues/timers).
+- `app` depends on `events`, `rendering` and `terminal`.
 - `terminal` depends on `core` and exposes terminal-oriented interfaces.
 - `platform` implements OS-specific services behind interfaces.
-- `controls` depends on `core`, `rendering` and `events`.
+- `controls` depends on `core`, `rendering` and `events` (Phase 5+).
 - Applications depend on public LUX units only.
 
 Circular dependencies are forbidden. Surfaces must not depend on terminal or platform units.
@@ -58,17 +59,24 @@ A backend owns terminal setup and restoration. Restoration must be idempotent.
 
 ## Event model
 
-Platform input is converted into normalized LUX events before reaching controls. Controls must not parse raw ANSI input sequences or native key records.
+Platform input is converted into normalized LUX events (`Lux.Events`) before reaching the application or future controls. Controls must not parse raw ANSI input sequences or native key records.
 
-Initial event classes:
+`ILuxEventSource` supplies events via non-blocking `PollEvent` and blocking `WaitEvent`. `TLuxApplication` merges terminal input with `TLuxTimerScheduler` firings through `TLuxEventQueue`. See `docs/adr/0004-event-source-queue-application.md`.
 
-- key;
-- mouse;
+Event kinds in Phase 4:
+
+- key (logical `TLuxKey` separate from Unicode `Ch`);
+- mouse (cell coordinates, button, action, wheel);
 - resize;
 - timer;
-- focus;
-- command;
-- shutdown.
+- quit;
+- unknown / none.
+
+Focus, command routing and widget trees belong to Phase 5+.
+
+## Application loop
+
+`TLuxApplication` runs on a single thread: wait → drain timers into the queue → dispatch events one by one → `Update` → render only if invalidated or resized. Session open/restore remains outside `Run` (`try`/`finally` in the example).
 
 ## Ownership and lifetime
 

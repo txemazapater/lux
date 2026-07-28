@@ -14,7 +14,22 @@ uses
   Lux.Terminal.Ansi,
   Lux.Terminal.MemoryWriter,
   Lux.Renderer,
+  Lux.Events,
+  Lux.EventQueue,
+  Lux.Timers,
   Lux.TestHarness;
+
+type
+  TFakeClock = class(TInterfacedObject, ILuxClock)
+  public
+    NowValue: TLuxTimeMs;
+    function NowMs: TLuxTimeMs;
+  end;
+
+function TFakeClock.NowMs: TLuxTimeMs;
+begin
+  Result := NowValue;
+end;
 
 procedure TestVersion;
 begin
@@ -303,6 +318,81 @@ begin
   end;
 end;
 
+procedure TestEventsAndQueue;
+var
+  Q: TLuxEventQueue;
+  E: TLuxEvent;
+begin
+  LuxSection('Lux.Events / Lux.EventQueue');
+  E := LuxEventKey(lkEscape, '', [], kaPress);
+  LuxCheck(E.Kind = ekKey, 'key kind');
+  LuxCheck(E.Key.Key = lkEscape, 'escape key');
+  LuxCheckEqualStr('', E.Key.Ch, 'escape has no char');
+  E := LuxEventKey(lkChar, UnicodeString(WideChar($00E9)), [kmAlt], kaPress);
+  LuxCheckEqualStr(UnicodeString(WideChar($00E9)), E.Key.Ch, 'unicode char preserved');
+  LuxCheck(kmAlt in E.Key.Modifiers, 'alt modifier');
+  E := LuxEventMouse(3, 4, mbLeft, maPress, [kmCtrl], 0, False);
+  LuxCheckEqualInt(3, E.Mouse.X, 'mouse x');
+  LuxCheck(E.Mouse.Button = mbLeft, 'mouse button');
+  E := LuxEventResize(100, 40);
+  LuxCheckEqualInt(100, E.Resize.Width, 'resize w');
+  E := LuxEventTimer(7);
+  LuxCheckEqualInt(7, E.Timer.TimerId, 'timer id');
+  LuxCheck(LuxEventQuit.Kind = ekQuit, 'quit');
+
+  Q := TLuxEventQueue.Create;
+  try
+    LuxCheck(Q.IsEmpty, 'queue empty');
+    Q.Push(LuxEventQuit);
+    Q.Push(LuxEventTimer(1));
+    LuxCheckEqualInt(2, Q.Count, 'queue count');
+    LuxCheck(Q.TryPop(E) and (E.Kind = ekQuit), 'fifo quit first');
+    LuxCheck(Q.TryPop(E) and (E.Kind = ekTimer), 'fifo timer second');
+    LuxCheck(not Q.TryPop(E), 'queue drained');
+  finally
+    Q.Free;
+  end;
+end;
+
+procedure TestTimers;
+var
+  Clock: TFakeClock;
+  ClockIf: ILuxClock;
+  Sched: TLuxTimerScheduler;
+  Q: TLuxEventQueue;
+  E: TLuxEvent;
+  Id1, Id2: TLuxTimerId;
+begin
+  LuxSection('Lux.Timers');
+  Clock := TFakeClock.Create;
+  Clock.NowValue := 1000;
+  ClockIf := Clock;
+  Sched := TLuxTimerScheduler.Create(ClockIf);
+  Q := TLuxEventQueue.Create;
+  try
+    Id1 := Sched.ScheduleOnce(100);
+    Id2 := Sched.ScheduleRepeating(50);
+    LuxCheckEqualInt(50, Integer(Sched.NextDelayMs), 'next delay is soonest timer');
+    Clock.NowValue := 1100;
+    Sched.CollectDueToQueue(Q);
+    LuxCheck(Q.TryPop(E) and (E.Kind = ekTimer) and (E.Timer.TimerId = Id1),
+      'one-shot fired');
+    LuxCheck(Q.TryPop(E) and (E.Timer.TimerId = Id2), 'repeat fired at 1100');
+    LuxCheck(Q.IsEmpty, 'no extras');
+    Clock.NowValue := 1150;
+    Sched.CollectDueToQueue(Q);
+    LuxCheck(Q.TryPop(E) and (E.Timer.TimerId = Id2), 'repeat fired again');
+    LuxCheck(Sched.Cancel(Id2), 'cancel repeat');
+    Clock.NowValue := 1300;
+    Sched.CollectDueToQueue(Q);
+    LuxCheck(Q.IsEmpty, 'cancelled timer silent');
+  finally
+    Q.Free;
+    Sched.Free;
+    ClockIf := nil;
+  end;
+end;
+
 begin
   WriteLn('LUX portable tests');
   TestVersion;
@@ -312,5 +402,7 @@ begin
   TestAnsiHelpers;
   TestMemoryWriter;
   TestRenderer;
+  TestEventsAndQueue;
+  TestTimers;
   Halt(LuxTestExitCode);
 end.

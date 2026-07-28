@@ -95,18 +95,18 @@ Exit criteria for full Phase 3:
 
 Goal: normalize user input and host an interactive application.
 
-- Keyboard events.
-- Modifier keys.
-- Mouse events.
-- Resize events.
-- Timer events.
-- Command events.
-- `TLuxApplication` main loop.
-- Invalidation and repaint scheduling.
+- Portable `Lux.Events` model (key vs Unicode char, mouse, resize, timer, quit).
+- `ILuxEventSource` (`PollEvent` / `WaitEvent`) plus platform Unix/Windows sources.
+- Unix: raw termios, incremental ANSI/UTF-8 parser, SGR mouse, SIGWINCH flag.
+- Windows: console input record translation to the same `TLuxEvent`.
+- `TLuxEventQueue`, portable timers with injectable clock.
+- `TLuxApplication` main loop with invalidation-based repaint (no widgets).
+- `examples/eventloop` shared demo; platform factory programs only differ.
 
 Exit criteria:
 
-- `hello_lux` reacts to resize and exits using Escape or `q`.
+- Same event model and application loop semantics verified on Windows and Unix.
+- Eventloop example shows last input, mouse, size and timer; exits with Escape/`q`; restores the terminal.
 
 ## Phase 5 - Control foundation
 
@@ -161,4 +161,4 @@ Git support, repository models and editor semantics belong to Lantern, not the L
 
 ## Current priority
 
-Cursor and other coding agents must work on Phase 4 (input and application loop). Do not begin controls yet. Attach input to the existing Windows/Unix session objects; keep the renderer portable.
+Cursor and other coding agents must finish Phase 4 verification on Windows and Unix. Do not begin controls (Phase 5) until the eventloop example and input backends are verified on both platforms.

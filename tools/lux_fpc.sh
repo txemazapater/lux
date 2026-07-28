@@ -56,11 +56,15 @@ lux_portable_paths() {
     "$root/src/core" \
     "$root/src/terminal" \
     "$root/src/rendering" \
+    "$root/src/events" \
+    "$root/src/app" \
     "$root/tests"
 }
 
 lux_unix_paths() {
   local root="$1"
   lux_portable_paths "$root"
-  printf '%s\n' "$root/src/platform/unix"
+  printf '%s\n' \
+    "$root/src/platform/unix" \
+    "$root/examples/eventloop"
 }

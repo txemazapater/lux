@@ -20,6 +20,7 @@ Targets for `tools\build.ps1`:
 | `tests` | `bin\lux_tests.exe` |
 | `windows-demo` | `bin\windows_demo.exe` |
 | `windows-tests` | `bin\lux_windows_tests.exe` |
+| `eventloop` | `bin\eventloop_windows.exe` |
 | `all` | all of the above |
 
 Run examples:
@@ -27,9 +28,10 @@ Run examples:
 ```powershell
 .\bin\hello_lux.exe
 .\bin\windows_demo.exe
+.\bin\eventloop_windows.exe
 ```
 
-`windows_demo` requires an interactive console. Optional integration:
+`windows_demo` and `eventloop_windows` require an interactive console. Optional integration:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\test_windows_integration.ps1
@@ -44,6 +46,7 @@ chmod +x tools/*.sh
 ./tools/test_unix.sh
 ./bin/hello_lux
 ./bin/unix_demo
+./bin/eventloop_unix
 ```
 
 Targets for `tools/build.sh`:
@@ -54,9 +57,10 @@ Targets for `tools/build.sh`:
 | `tests` | `bin/lux_tests` |
 | `unix-demo` | `bin/unix_demo` |
 | `unix-tests` | `bin/lux_unix_tests` |
+| `eventloop` | `bin/eventloop_unix` |
 | `all` | all of the above |
 
-`unix_demo` requires a TTY. Optional integration:
+`unix_demo` and `eventloop_unix` require a TTY. Optional integration:
 
 ```bash
 ./tools/test_unix_integration.sh
@@ -74,15 +78,15 @@ powershell -ExecutionPolicy Bypass -File tools\check_portable.ps1
 ./tools/check_portable.sh
 ```
 
-Fails if Win32/termios references appear under `src/core`, `src/rendering` or `src/terminal`.
+Fails if Win32/termios references appear under `src/core`, `src/rendering`, `src/terminal`, `src/events` or `src/app`.
 
 ## Continuous integration
 
 GitHub Actions is **Linux-only**:
 
 - portable isolation, build, portable tests
-- Unix platform unit tests
-- build `unix_demo` and smoke it under a pseudo-TTY (`script`)
+- Unix platform unit tests (includes offline input parser)
+- build `unix_demo` / `eventloop_unix` and smoke under a pseudo-TTY (`script`)
 - smoke-run `hello_lux`
 
 Windows validation remains a local developer workflow.

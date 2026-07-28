@@ -1,4 +1,4 @@
-{ Unix terminal session: acquire, configure, restore. }
+{ Unix terminal session: acquire, configure (raw/mouse/alt), restore. }
 unit Lux.Platform.Unix.TerminalSession;
 
 {$mode objfpc}{$H+}
@@ -16,15 +16,21 @@ uses
   Lux.Platform.Unix.TerminalWriter;
 
 type
-  { Owns termios / cursor visibility for the lifetime of a LUX run.
+  { Owns termios / cursor / alt-screen / mouse for the lifetime of a LUX run.
     API mirrors TLuxWindowsTerminalSession for Phase 4 alignment.
-    Restoration is idempotent and invoked from Destroy. }
+    Restoration is idempotent and invoked from Destroy.
+    Raw mode and mouse enablement live here; byte decoding lives in the
+    event source / input parser. }
   TLuxUnixTerminalSession = class
   private
     FOpen: Boolean;
     FRestored: Boolean;
+    FRawActive: Boolean;
+    FMouseActive: Boolean;
+    FAltScreenActive: Boolean;
     FOutputFd: cint;
     FInputFd: cint;
+    FTermiosFd: cint;
     FOriginalTermios: Termios;
     FHaveTermios: Boolean;
     FCaps: TLuxUnixConsoleCaps;
@@ -33,6 +39,8 @@ type
     procedure CaptureState;
     procedure ApplyLuxState;
     procedure RestoreState;
+    procedure ApplyRawMode;
+    procedure EmitModes(AEnable: Boolean);
   public
     constructor Create;
     destructor Destroy; override;
@@ -42,6 +50,9 @@ type
     { Acquire a TTY-backed stdout. Raises if stdout is redirected or TERM is dumb. }
     procedure Open;
     procedure Close;
+
+    { Refresh Columns/Rows from TIOCGWINSZ (safe outside signal handlers). }
+    procedure RefreshSize;
 
     property IsOpen: Boolean read FOpen;
     property Capabilities: TLuxUnixConsoleCaps read FCaps;
@@ -59,11 +70,15 @@ begin
   inherited Create;
   FOpen := False;
   FRestored := True;
+  FRawActive := False;
+  FMouseActive := False;
+  FAltScreenActive := False;
   FHaveTermios := False;
   FWriterObj := nil;
   FWriter := nil;
   FOutputFd := StdOutputHandle;
   FInputFd := StdInputHandle;
+  FTermiosFd := StdInputHandle;
 end;
 
 destructor TLuxUnixTerminalSession.Destroy;
@@ -80,64 +95,113 @@ begin
 end;
 
 procedure TLuxUnixTerminalSession.CaptureState;
-var
-  TtyFd: cint;
 begin
-  { Prefer stdin for termios (controlling terminal); fall back to stdout. }
-  TtyFd := FInputFd;
-  if not LuxUnixIsTty(TtyFd) then
-    TtyFd := FOutputFd;
+  FTermiosFd := FInputFd;
+  if not LuxUnixIsTty(FTermiosFd) then
+    FTermiosFd := FOutputFd;
 
   FHaveTermios := False;
-  if LuxUnixIsTty(TtyFd) then
+  if LuxUnixIsTty(FTermiosFd) then
   begin
     FillChar(FOriginalTermios, SizeOf(FOriginalTermios), 0);
-    if TCGetAttr(TtyFd, FOriginalTermios) = 0 then
+    if TCGetAttr(FTermiosFd, FOriginalTermios) = 0 then
       FHaveTermios := True
     else
       raise ELuxUnixTerminal.CreateOp('tcgetattr', FpGetErrno);
   end;
 end;
 
-procedure TLuxUnixTerminalSession.ApplyLuxState;
+procedure TLuxUnixTerminalSession.ApplyRawMode;
+var
+  Raw: Termios;
 begin
-  { Phase 3B does not enter raw input mode (Phase 4). Capture termios now so
-    future input changes can restore cleanly. Hide cursor via ANSI. }
-  if FWriter <> nil then
-  begin
-    FWriter.WriteRaw(LuxAnsiHideCursor);
-    FWriter.Flush;
-  end;
+  if not FHaveTermios then
+    Exit;
+  Raw := FOriginalTermios;
+  Raw.c_lflag := Raw.c_lflag and not (ECHO or ICANON or ISIG or IEXTEN);
+  Raw.c_iflag := Raw.c_iflag and not (IXON or ICRNL or INLCR or IGNCR or
+    BRKINT or PARMRK or ISTRIP);
+  Raw.c_oflag := Raw.c_oflag and not OPOST;
+  Raw.c_cflag := (Raw.c_cflag and not CSIZE) or CS8;
+  Raw.c_cc[VMIN] := 0;
+  Raw.c_cc[VTIME] := 0;
+  if TCSetAttr(FTermiosFd, TCSANOW, Raw) <> 0 then
+    raise ELuxUnixTerminal.CreateOp('tcsetattr(raw)', FpGetErrno);
+  FRawActive := True;
 end;
 
-procedure TLuxUnixTerminalSession.RestoreState;
-var
-  TtyFd: cint;
+procedure TLuxUnixTerminalSession.EmitModes(AEnable: Boolean);
 begin
-  if FRestored then
+  if FWriter = nil then
     Exit;
-
-  if FWriter <> nil then
+  if AEnable then
   begin
+    FWriter.WriteRaw(LuxAnsiEnterAltScreen);
+    FWriter.WriteRaw(LuxAnsiHideCursor);
+    FWriter.WriteRaw(LuxAnsiEnableMouseSgr);
+    FWriter.Flush;
+    FAltScreenActive := True;
+    FMouseActive := True;
+  end
+  else
+  begin
+    if FMouseActive then
+    begin
+      try
+        FWriter.WriteRaw(LuxAnsiDisableMouseSgr);
+      except
+      end;
+      FMouseActive := False;
+    end;
+    if FAltScreenActive then
+    begin
+      try
+        FWriter.WriteRaw(LuxAnsiLeaveAltScreen);
+      except
+      end;
+      FAltScreenActive := False;
+    end;
     try
       FWriter.WriteRaw(LuxAnsiShowCursor);
       FWriter.Flush;
     except
-      { Best-effort cursor restore during teardown. }
     end;
   end;
+end;
 
-  if FHaveTermios then
+procedure TLuxUnixTerminalSession.ApplyLuxState;
+begin
+  ApplyRawMode;
+  EmitModes(True);
+end;
+
+procedure TLuxUnixTerminalSession.RestoreState;
+begin
+  if FRestored then
+    Exit;
+
+  EmitModes(False);
+
+  if FHaveTermios and LuxUnixIsTty(FTermiosFd) then
   begin
-    TtyFd := FInputFd;
-    if not LuxUnixIsTty(TtyFd) then
-      TtyFd := FOutputFd;
-    if LuxUnixIsTty(TtyFd) then
-      TCSetAttr(TtyFd, TCSANOW, FOriginalTermios);
+    TCSetAttr(FTermiosFd, TCSANOW, FOriginalTermios);
+    FRawActive := False;
   end;
 
   FRestored := True;
   FOpen := False;
+end;
+
+procedure TLuxUnixTerminalSession.RefreshSize;
+var
+  Cols, Rows: Integer;
+begin
+  if LuxUnixQueryWinSize(FOutputFd, Cols, Rows) or
+     LuxUnixQueryWinSize(FInputFd, Cols, Rows) then
+  begin
+    FCaps.Columns := Cols;
+    FCaps.Rows := Rows;
+  end;
 end;
 
 procedure TLuxUnixTerminalSession.Open;
@@ -176,7 +240,6 @@ end;
 
 procedure TLuxUnixTerminalSession.Close;
 begin
-  { Restore while writer is still alive so cursor show can be emitted. }
   RestoreState;
   FWriter := nil;
   FWriterObj := nil;

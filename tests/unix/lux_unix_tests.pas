@@ -15,7 +15,15 @@ uses
   Lux.Platform.Unix.Console,
   Lux.Platform.Unix.TerminalWriter,
   Lux.Platform.Unix.TerminalSession,
+  Lux.Platform.Unix.InputParser,
+  Lux.Events,
   Lux.TestHarness;
+
+function LuxTestBytes(const Hexish: RawByteString): RawByteString;
+begin
+  Result := Hexish;
+  SetCodePage(RawByteString(Result), CP_NONE, False);
+end;
 
 procedure TestCreateDestroySafe;
 var
@@ -99,11 +107,11 @@ begin
   Expected := '';
   SetLength(Expected, 5);
   SetCodePage(Expected, CP_NONE, False);
-  Expected[1] := #$41; { A }
-  Expected[2] := #$E4; { UTF-8 for U+4E00 }
+  Expected[1] := #$41;
+  Expected[2] := #$E4;
   Expected[3] := #$B8;
   Expected[4] := #$80;
-  Expected[5] := #$5A; { Z };
+  Expected[5] := #$5A;
 
   Writer.WriteText('A' + UnicodeString(WideChar($4E00)) + 'Z');
   Writer.Flush;
@@ -116,7 +124,7 @@ begin
   ReadFd := FpOpen(PChar(Path), O_RdOnly);
   LuxCheck(ReadFd >= 0, 'temp file reopened');
   try
-    N := FpRead(ReadFd, Buf[0], SizeOf(Buf));
+    N := FpRead(ReadFd, @Buf[0], SizeOf(Buf));
     LuxCheck(N >= 0, 'temp file read ok');
     SetLength(Data, N);
     if N > 0 then
@@ -229,6 +237,98 @@ begin
   end;
 end;
 
+procedure TestUnixInputParser;
+var
+  P: TLuxUnixInputParser;
+  Ev: TLuxEvent;
+  St: TLuxUnixParseStatus;
+  Arrow: RawByteString;
+  Utf8: RawByteString;
+  Mouse: RawByteString;
+begin
+  LuxSection('Unix input parser');
+  P := TLuxUnixInputParser.Create;
+  try
+    P.Feed(LuxTestBytes('a'));
+    St := P.TryParse(Ev);
+    LuxCheck(St = upsEvent, 'ascii event');
+    LuxCheck(Ev.Key.Key = lkChar, 'ascii char key');
+    LuxCheckEqualStr('a', Ev.Key.Ch, 'ascii char');
+
+    Utf8 := LuxTestBytes(#$C3);
+    P.Feed(Utf8);
+    St := P.TryParse(Ev);
+    LuxCheck(St = upsNone, 'incomplete utf8 waits');
+    P.Feed(LuxTestBytes(#$A9));
+    St := P.TryParse(Ev);
+    LuxCheck(St = upsEvent, 'utf8 complete');
+    LuxCheckEqualStr('é', Ev.Key.Ch, 'utf8 char');
+
+    P.Feed(LuxTestBytes(#27));
+    St := P.TryParse(Ev);
+    LuxCheck(St = upsAmbiguousEsc, 'lone esc ambiguous');
+    P.Feed(LuxTestBytes('['));
+    St := P.TryParse(Ev);
+    LuxCheck(St = upsNone, 'esc[ incomplete');
+    P.Feed(LuxTestBytes('D'));
+    St := P.TryParse(Ev);
+    LuxCheck(St = upsEvent, 'arrow complete');
+    LuxCheck(Ev.Key.Key = lkLeft, 'left arrow');
+
+    Arrow := LuxTestBytes(#27'OA');
+    P.Feed(Arrow);
+    St := P.TryParse(Ev);
+    LuxCheck((St = upsEvent) and (Ev.Key.Key = lkUp), 'ss3 up');
+
+    P.Feed(LuxTestBytes(#27'[15~'));
+    St := P.TryParse(Ev);
+    LuxCheck((St = upsEvent) and (Ev.Key.Key = lkF5), 'f5');
+
+    P.Feed(LuxTestBytes(#13));
+    St := P.TryParse(Ev);
+    LuxCheck((St = upsEvent) and (Ev.Key.Key = lkEnter), 'enter');
+
+    P.Feed(LuxTestBytes(#27'b'));
+    St := P.TryParse(Ev);
+    LuxCheck((St = upsEvent) and (kmAlt in Ev.Key.Modifiers), 'alt+b');
+    LuxCheckEqualStr('b', Ev.Key.Ch, 'alt+b char');
+
+    P.Clear;
+    P.Feed(LuxTestBytes(#27));
+    St := P.TryParse(Ev);
+    LuxCheck(St = upsAmbiguousEsc, 'esc alone');
+    LuxCheck(P.ResolveAmbiguousEscape(Ev) and (Ev.Key.Key = lkEscape),
+      'resolve escape');
+
+    P.Feed(LuxTestBytes(#27'[999q'));
+    St := P.TryParse(Ev);
+    LuxCheck(St = upsEvent, 'unknown csi yields event');
+    LuxCheck(Ev.Kind = ekUnknown, 'unknown kind');
+
+    Mouse := LuxTestBytes(#27'[<0;5;8M');
+    P.Feed(Mouse);
+    St := P.TryParse(Ev);
+    LuxCheck(St = upsEvent, 'sgr mouse');
+    LuxCheck(Ev.Kind = ekMouse, 'mouse kind');
+    LuxCheckEqualInt(4, Ev.Mouse.X, 'mouse x 0-based');
+    LuxCheckEqualInt(7, Ev.Mouse.Y, 'mouse y 0-based');
+    LuxCheck(Ev.Mouse.Button = mbLeft, 'mouse left');
+    LuxCheck(Ev.Mouse.Action = maPress, 'mouse press');
+
+    P.Feed(LuxTestBytes(#27'[<0;5;8m'));
+    St := P.TryParse(Ev);
+    LuxCheck((St = upsEvent) and (Ev.Mouse.Action = maRelease), 'mouse release');
+
+    P.Feed(LuxTestBytes(#27'[<'));
+    LuxCheck(P.TryParse(Ev) = upsNone, 'mouse incomplete');
+    P.Feed(LuxTestBytes('64;2;3M'));
+    St := P.TryParse(Ev);
+    LuxCheck((St = upsEvent) and (Ev.Mouse.Action = maWheel), 'wheel');
+  finally
+    P.Free;
+  end;
+end;
+
 begin
   WriteLn('LUX Unix platform tests');
   TestCreateDestroySafe;
@@ -239,5 +339,6 @@ begin
   TestTtyOpenRestore;
   TestSeparationMemoryRenderer;
   TestErrorMessageIncludesCode;
+  TestUnixInputParser;
   Halt(LuxTestExitCode);
 end.

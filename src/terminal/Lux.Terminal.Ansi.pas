@@ -29,6 +29,14 @@ function LuxAnsiApplyStyle(const AStyle: TLuxTextStyle): RawByteString;
 function LuxAnsiClearScreen: RawByteString;
 function LuxAnsiClearLine: RawByteString;
 
+{ Alternate screen buffer (xterm). }
+function LuxAnsiEnterAltScreen: RawByteString;
+function LuxAnsiLeaveAltScreen: RawByteString;
+
+{ SGR mouse tracking: basic clicks, drag/move, and SGR encoding. }
+function LuxAnsiEnableMouseSgr: RawByteString;
+function LuxAnsiDisableMouseSgr: RawByteString;
+
 implementation
 
 function LuxAnsiCSI(const AParams: RawByteString): RawByteString;
@@ -136,6 +144,27 @@ end;
 function LuxAnsiClearLine: RawByteString;
 begin
   Result := LuxAnsiCSI('2K');
+end;
+
+function LuxAnsiEnterAltScreen: RawByteString;
+begin
+  Result := LuxAnsiCSI('?1049h');
+end;
+
+function LuxAnsiLeaveAltScreen: RawByteString;
+begin
+  Result := LuxAnsiCSI('?1049l');
+end;
+
+function LuxAnsiEnableMouseSgr: RawByteString;
+begin
+  { 1000 = click, 1002 = drag/move with button, 1006 = SGR encoding }
+  Result := LuxAnsiCSI('?1000h') + LuxAnsiCSI('?1002h') + LuxAnsiCSI('?1006h');
+end;
+
+function LuxAnsiDisableMouseSgr: RawByteString;
+begin
+  Result := LuxAnsiCSI('?1006l') + LuxAnsiCSI('?1002l') + LuxAnsiCSI('?1000l');
 end;
 
 end.

@@ -16,6 +16,8 @@ uses
   Lux.Platform.Windows.Console,
   Lux.Platform.Windows.TerminalWriter,
   Lux.Platform.Windows.TerminalSession,
+  Lux.Platform.Windows.InputTranslate,
+  Lux.Events,
   Lux.TestHarness;
 
 procedure TestCreateDestroySafe;
@@ -232,6 +234,51 @@ begin
   end;
 end;
 
+procedure TestInputTranslate;
+var
+  Rec: INPUT_RECORD;
+  Ev: TLuxEvent;
+begin
+  LuxSection('Windows input translate');
+  Rec := LuxWinMakeKeyRecord(True, 1, $1B, 0, #0, 0);
+  LuxCheck(LuxWindowsTranslateInputRecord(Rec, Ev), 'escape translates');
+  LuxCheck(Ev.Kind = ekKey, 'escape kind');
+  LuxCheck(Ev.Key.Key = lkEscape, 'escape key');
+  LuxCheckEqualStr('', Ev.Key.Ch, 'escape no char');
+
+  Rec := LuxWinMakeKeyRecord(True, 1, Ord('A'), 0, 'a', LEFT_CTRL_PRESSED);
+  LuxCheck(LuxWindowsTranslateInputRecord(Rec, Ev), 'ctrl+a translates');
+  LuxCheck(Ev.Key.Key = lkChar, 'ctrl+a is char');
+  LuxCheckEqualStr('a', Ev.Key.Ch, 'ctrl+a char');
+  LuxCheck(kmCtrl in Ev.Key.Modifiers, 'ctrl set');
+
+  Rec := LuxWinMakeKeyRecord(True, 3, $25, 0, #0, 0); { VK_LEFT }
+  LuxCheck(LuxWindowsTranslateInputRecord(Rec, Ev), 'left arrow');
+  LuxCheck(Ev.Key.Key = lkLeft, 'left key');
+  LuxCheckEqualInt(3, Ev.Key.RepeatCount, 'repeat count kept');
+
+  Rec := LuxWinMakeMouseRecord(10, 5, FROM_LEFT_1ST_BUTTON_PRESSED, 0, 0);
+  LuxCheck(LuxWindowsTranslateInputRecord(Rec, Ev), 'mouse press');
+  LuxCheck(Ev.Kind = ekMouse, 'mouse kind');
+  LuxCheckEqualInt(10, Ev.Mouse.X, 'mouse x');
+  LuxCheck(Ev.Mouse.Button = mbLeft, 'left button');
+  LuxCheck(Ev.Mouse.Action = maPress, 'press action');
+
+  Rec := LuxWinMakeMouseRecord(10, 5, 0, 0, MOUSE_MOVED);
+  LuxCheck(LuxWindowsTranslateInputRecord(Rec, Ev), 'mouse move');
+  LuxCheck(Ev.Mouse.Action = maMove, 'move action');
+
+  Rec := LuxWinMakeResizeRecord(120, 40);
+  LuxCheck(LuxWindowsTranslateInputRecord(Rec, Ev), 'resize');
+  LuxCheck(Ev.Kind = ekResize, 'resize kind');
+  LuxCheckEqualInt(120, Ev.Resize.Width, 'resize width');
+
+  { Conceptual parity: Escape is lkEscape with empty character on both platforms. }
+  Ev := LuxEventKey(lkEscape, '', [], kaPress);
+  LuxCheck(Ev.Key.Key = lkEscape, 'portable escape key');
+  LuxCheckEqualStr('', Ev.Key.Ch, 'portable escape has no char');
+end;
+
 begin
   WriteLn('LUX Windows platform tests');
   TestCreateDestroySafe;
@@ -242,5 +289,6 @@ begin
   TestConsoleOpenRestore;
   TestSeparationMemoryRenderer;
   TestErrorMessageIncludesCode;
+  TestInputTranslate;
   Halt(LuxTestExitCode);
 end.

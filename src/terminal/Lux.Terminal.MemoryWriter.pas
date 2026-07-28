@@ -35,6 +35,7 @@ constructor TLuxMemoryTerminalWriter.Create;
 begin
   inherited Create;
   FBuffer := '';
+  SetCodePage(RawByteString(FBuffer), CP_NONE, False);
   FFlushCount := 0;
 end;
 
@@ -44,8 +45,18 @@ begin
 end;
 
 procedure TLuxMemoryTerminalWriter.WriteRaw(const AData: RawByteString);
+var
+  OldLen, AddLen: Integer;
 begin
-  FBuffer := FBuffer + AData;
+  AddLen := System.Length(AData);
+  if AddLen = 0 then
+    Exit;
+  { Avoid RawByteString "+" across code pages: CP_NONE payloads are dropped
+    when concatenated onto a system-codepage buffer. }
+  OldLen := System.Length(FBuffer);
+  SetLength(FBuffer, OldLen + AddLen);
+  Move(AData[1], FBuffer[OldLen + 1], AddLen);
+  SetCodePage(RawByteString(FBuffer), CP_NONE, False);
 end;
 
 procedure TLuxMemoryTerminalWriter.Flush;

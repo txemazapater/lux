@@ -36,6 +36,8 @@ function Get-LuxPortableUnitPaths {
         (Join-Path $Root 'src\core'),
         (Join-Path $Root 'src\terminal'),
         (Join-Path $Root 'src\rendering'),
+        (Join-Path $Root 'src\events'),
+        (Join-Path $Root 'src\app'),
         (Join-Path $Root 'tests')
     )
 }
@@ -43,7 +45,8 @@ function Get-LuxPortableUnitPaths {
 function Get-LuxWindowsUnitPaths {
     param([string]$Root)
     (Get-LuxPortableUnitPaths -Root $Root) + @(
-        (Join-Path $Root 'src\platform\windows')
+        (Join-Path $Root 'src\platform\windows'),
+        (Join-Path $Root 'examples\eventloop')
     )
 }
 
