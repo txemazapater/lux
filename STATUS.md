@@ -32,10 +32,11 @@ Covered behaviour: TTY probe, termios capture/restore, `ILuxTerminalWriter` via 
 |------|--------|
 | Host (dev) | Windows x86_64 FPC 3.2.2 — portable + Windows paths |
 | Portable isolation | passed |
-| Portable tests | **94 passed** (local Windows) |
+| Portable tests | **94 passed** (local Windows + CI Linux) |
 | Windows unit tests | **16 passed** (local) |
-| Unix sources | authored; compiled/tested on GitHub Actions Linux |
-| CI | Linux-only: portable + Unix platform tests + `unix_demo` under `script` PTY |
+| Unix platform tests | **passed on GitHub Actions Linux** |
+| `unix_demo` | built on CI; smoked under `script` pseudo-TTY → success |
+| CI | https://github.com/txemazapater/lux/actions/runs/30358754343 → **success** |
 
 ## Commands
 
