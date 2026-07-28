@@ -54,17 +54,29 @@ This structure is provisional and will evolve as the architecture becomes cleare
 
 ## Status
 
-LUX is at the **project inception** stage. The current work is focused on defining the terminal abstraction, event model and rendering strategy before implementing higher-level controls.
-
-See [ROADMAP.md](ROADMAP.md) and [docs/VISION.md](docs/VISION.md).
+LUX is in **Phase 0**: repository scaffolding and a compilable `hello_lux` placeholder. See [STATUS.md](STATUS.md), [ROADMAP.md](ROADMAP.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Building
 
-Build instructions will be added with the first compilable prototype.
+See [docs/BUILDING.md](docs/BUILDING.md).
+
+Quick start (Windows):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\build.ps1
+.\bin\hello_lux.exe
+```
+
+Quick start (Linux / macOS):
+
+```bash
+./tools/build.sh
+./bin/hello_lux
+```
 
 Expected toolchain:
 
-- Free Pascal Compiler
+- Free Pascal Compiler 3.2.2 or later
 - Lazarus tools where useful, without requiring the Lazarus IDE at runtime
 - Git
 

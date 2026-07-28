@@ -1,0 +1,14 @@
+bin/
+*.o
+*.ppu
+*.a
+*.exe
+*.dll
+*.so
+*.dylib
+*.or
+*.rsj
+*.compiled
+lib/
+*.lps
+*.dbg
