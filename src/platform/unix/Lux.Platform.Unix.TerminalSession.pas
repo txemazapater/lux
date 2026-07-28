@@ -194,13 +194,13 @@ end;
 
 procedure TLuxUnixTerminalSession.RefreshSize;
 var
-  Cols, Rows: Integer;
+  Cols, RowCount: Integer;
 begin
-  if LuxUnixQueryWinSize(FOutputFd, Cols, Rows) or
-     LuxUnixQueryWinSize(FInputFd, Cols, Rows) then
+  if LuxUnixQueryWinSize(FOutputFd, Cols, RowCount) or
+     LuxUnixQueryWinSize(FInputFd, Cols, RowCount) then
   begin
     FCaps.Columns := Cols;
-    FCaps.Rows := Rows;
+    FCaps.Rows := RowCount;
   end;
 end;
 
