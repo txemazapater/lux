@@ -9,6 +9,7 @@ uses
   SysUtils,
   Windows,
   Lux.Terminal.Writer,
+  Lux.Terminal.Errors,
   Lux.Platform.Windows.Console,
   Lux.Platform.Windows.TerminalWriter;
 

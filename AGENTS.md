@@ -118,4 +118,4 @@ A task is done only when:
 
 ## Current instruction to coding agents
 
-Phases 0, 1, 2A and 3A are complete. Continue with Phase 3B from `ROADMAP.md`: Unix platform backend that configures/restores the terminal and implements `ILuxTerminalWriter`. Do not begin controls yet. Keep ANSI generation and the differential renderer portable. Do not add Win32 code outside `src/platform/windows`.
+Phases 0–3B are complete. Continue with Phase 4 from `ROADMAP.md`: normalize keyboard, mouse and resize input on top of `TLuxWindowsTerminalSession` / `TLuxUnixTerminalSession`, then a minimal application loop. Do not begin controls yet. Keep ANSI generation and the differential renderer portable. Keep Win32 in `src/platform/windows` and termios in `src/platform/unix`.

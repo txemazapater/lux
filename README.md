@@ -54,7 +54,7 @@ This structure is provisional and will evolve as the architecture becomes cleare
 
 ## Status
 
-**Phases 0–3A** complete (foundation, portable surface core, portable ANSI diff renderer, Windows terminal backend). See [STATUS.md](STATUS.md), [ROADMAP.md](ROADMAP.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+**Phases 0–3B** complete (foundation, portable core, ANSI diff renderer, Windows + Unix terminal backends). See [STATUS.md](STATUS.md), [ROADMAP.md](ROADMAP.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Building
 
@@ -70,12 +70,14 @@ powershell -ExecutionPolicy Bypass -File tools\test_windows.ps1
 .\bin\windows_demo.exe
 ```
 
-Quick start (Linux / macOS — portable only):
+Quick start (Linux):
 
 ```bash
-./tools/build.sh
+./tools/build.sh all
 ./tools/test.sh
+./tools/test_unix.sh
 ./bin/hello_lux
+./bin/unix_demo
 ```
 
 Expected toolchain:

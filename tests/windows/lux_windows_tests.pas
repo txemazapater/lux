@@ -8,6 +8,7 @@ uses
   Classes,
   Windows,
   Lux.Terminal.Writer,
+  Lux.Terminal.Errors,
   Lux.Terminal.MemoryWriter,
   Lux.Surface,
   Lux.Renderer,

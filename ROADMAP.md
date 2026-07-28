@@ -75,18 +75,21 @@ Status: **complete**
 
 ### Phase 3B — Unix backend
 
-Status: **pending**
+Status: **complete**
 
-- Unix backend.
-- Terminal size detection (shared / per platform as needed).
-- Raw input mode.
-- Alternate screen support.
-- Cursor visibility control beyond the Windows 3A baseline.
-- Reliable cleanup after handled exceptions on Unix.
+- Unix TTY probe and capability snapshot (including winsize).
+- `TLuxUnixTerminalWriter` implementing `ILuxTerminalWriter`.
+- `TLuxUnixTerminalSession` with termios capture and idempotent restore.
+- Shared `ELuxTerminalUnavailable` in `Lux.Terminal.Errors`.
+- `examples/unix_demo` against a real TTY.
+- Unix unit tests on Linux CI; interactive tests optional.
+- Session API mirrored with Windows 3A (see `docs/adr/0003-mirrored-session-api.md`).
+
+Raw input mode and mouse/keyboard decoding belong to Phase 4.
 
 Exit criteria for full Phase 3:
 
-- Examples enter and leave terminal mode cleanly on Windows and Linux.
+- Examples enter and leave terminal mode cleanly on Windows (local) and Linux (CI/local).
 
 ## Phase 4 - Input and application loop
 
@@ -158,4 +161,4 @@ Git support, repository models and editor semantics belong to Lantern, not the L
 
 ## Current priority
 
-Cursor and other coding agents must work on Phase 3B (Unix terminal backend). Do not begin controls yet. Do not write directly to stdout from the renderer. Keep Win32 confined to `src/platform/windows`.
+Cursor and other coding agents must work on Phase 4 (input and application loop). Do not begin controls yet. Attach input to the existing Windows/Unix session objects; keep the renderer portable.

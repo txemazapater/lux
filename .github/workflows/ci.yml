@@ -6,8 +6,7 @@ on:
   pull_request:
 
 # GitHub-hosted Windows runners cannot reliably install FPC for this project.
-# Windows builds and platform tests remain local developer workflows.
-# CI covers the portable Unix/Linux path only.
+# Windows builds remain local. CI covers portable + Unix platform paths on Linux.
 
 jobs:
   portable-linux:
@@ -23,16 +22,29 @@ jobs:
           sudo apt-get install -y fpc
           fpc -iV
 
+      - name: Make scripts executable
+        run: chmod +x tools/*.sh
+
       - name: Portable isolation check
-        run: |
-          chmod +x tools/check_portable.sh tools/build.sh tools/test.sh
-          ./tools/check_portable.sh
+        run: ./tools/check_portable.sh
 
       - name: Build hello_lux
-        run: ./tools/build.sh
+        run: ./tools/build.sh hello
 
       - name: Run portable tests
         run: ./tools/test.sh
 
+      - name: Build and run Unix platform tests
+        run: ./tools/test_unix.sh
+
+      - name: Build unix_demo
+        run: ./tools/build.sh unix-demo
+
       - name: Smoke-run hello_lux
         run: ./bin/hello_lux
+
+      - name: Smoke-run unix_demo under pseudo-TTY
+        run: |
+          # script(1) allocates a PTY so Session.Open can succeed in CI.
+          sudo apt-get install -y bsdutils || true
+          timeout 20s script -q -c "./bin/unix_demo" /dev/null

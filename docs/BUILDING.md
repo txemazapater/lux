@@ -22,13 +22,6 @@ Targets for `tools\build.ps1`:
 | `windows-tests` | `bin\lux_windows_tests.exe` |
 | `all` | all of the above |
 
-Optional: point at a specific compiler:
-
-```powershell
-$env:FPC = 'C:\lazarus\fpc\3.2.2\bin\x86_64-win64\fpc.exe'
-powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Target hello
-```
-
 Run examples:
 
 ```powershell
@@ -36,91 +29,60 @@ Run examples:
 .\bin\windows_demo.exe
 ```
 
-`windows_demo` requires an interactive console (not a redirected pipe). It enables VT/UTF-8, renders two frames, and restores the console on exit.
-
-Optional interactive Windows integration tests:
+`windows_demo` requires an interactive console. Optional integration:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\test_windows_integration.ps1
 ```
 
-## Linux / macOS (portable only)
-
-Windows platform units are not built on Unix hosts.
+## Linux
 
 ```bash
-chmod +x tools/build.sh tools/test.sh tools/check_portable.sh
-./tools/build.sh
+chmod +x tools/*.sh
+./tools/build.sh all
 ./tools/test.sh
+./tools/test_unix.sh
 ./bin/hello_lux
+./bin/unix_demo
 ```
 
-Optional:
+Targets for `tools/build.sh`:
+
+| Target | Output |
+|--------|--------|
+| `hello` | `bin/hello_lux` |
+| `tests` | `bin/lux_tests` |
+| `unix-demo` | `bin/unix_demo` |
+| `unix-tests` | `bin/lux_unix_tests` |
+| `all` | all of the above |
+
+`unix_demo` requires a TTY. Optional integration:
 
 ```bash
-FPC=/usr/bin/fpc ./tools/build.sh
+./tools/test_unix_integration.sh
 ```
 
-## One-command portable test run
+Windows platform units are not built on Unix hosts, and Unix units are not built on Windows hosts.
 
-Windows:
+## Portable isolation
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\test.ps1
+powershell -ExecutionPolicy Bypass -File tools\check_portable.ps1
 ```
-
-Unix:
 
 ```bash
-./tools/test.sh
+./tools/check_portable.sh
 ```
 
-These scripts also run the portable isolation check (`tools/check_portable.*`) which fails if Win32/termios references appear under `src/core`, `src/rendering` or `src/terminal`.
-
-## Manual FPC invocation
-
-Portable:
-
-```bash
-fpc -Mobjfpc -Scghi -O1 -g -gl -vewnhibq \
-  -Fusrc/core -Fusrc/terminal -Fusrc/rendering -FUbin/units -FEbin -obin/hello_lux \
-  examples/hello/hello_lux.pas
-
-fpc -Mobjfpc -Scghi -O1 -g -gl -vewnhibq \
-  -Fusrc/core -Fusrc/terminal -Fusrc/rendering -Futests -FUbin/units -FEbin -obin/lux_tests \
-  tests/lux_tests.pas
-```
-
-Windows-only:
-
-```powershell
-fpc -Mobjfpc -Scghi -O1 -g -gl -vewnhibq `
-  -Fusrc/core -Fusrc/terminal -Fusrc/rendering -Fusrc/platform/windows -Futests `
-  -FUbin/units -FEbin -obin/windows_demo.exe `
-  examples/windows_demo/windows_demo.pas
-```
-
-## Compiler switches
-
-The build scripts use:
-
-| Switch | Purpose |
-|--------|---------|
-| `-Mobjfpc` | Object Pascal mode |
-| `-Scghi` | C-like operators, label goto, inlining, allow `inline` |
-| `-O1` | Basic optimizations |
-| `-g` `-gl` | Debug info with line info |
-| `-vewnhibq` | Show errors, warnings, notes, hints; hide specific noise; be quiet about logo |
-
-Build products land under `bin/` and are ignored by Git.
+Fails if Win32/termios references appear under `src/core`, `src/rendering` or `src/terminal`.
 
 ## Continuous integration
 
-GitHub Actions (`.github/workflows/ci.yml`) runs **Linux only**:
+GitHub Actions is **Linux-only**:
 
-- portable isolation check
-- build `hello_lux`
-- portable unit tests
+- portable isolation, build, portable tests
+- Unix platform unit tests
+- build `unix_demo` and smoke it under a pseudo-TTY (`script`)
 - smoke-run `hello_lux`
 
-Windows compilation, `windows_demo`, and Windows platform tests are **not** run on GitHub-hosted runners (FPC install there is unreliable for this project). Validate those locally with `tools\build.ps1` / `tools\test_windows.ps1`.
+Windows validation remains a local developer workflow.

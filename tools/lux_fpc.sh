@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared Free Pascal helpers for LUX shell scripts (portable targets only).
+# Shared Free Pascal helpers for LUX shell scripts.
 set -euo pipefail
 
 lux_root() {
@@ -23,11 +23,18 @@ lux_fpc_compile() {
   local root="$1"
   local source="$2"
   local output="$3"
-  local fpc out unit_out
+  shift 3
+  local unit_paths=("$@")
+  local fpc out unit_out args=()
   fpc="$(lux_resolve_fpc)"
   out="$root/bin"
   unit_out="$out/units"
   mkdir -p "$out" "$unit_out"
+
+  local p
+  for p in "${unit_paths[@]}"; do
+    args+=("-Fu$p")
+  done
 
   "$fpc" \
     -Mobjfpc \
@@ -36,12 +43,24 @@ lux_fpc_compile() {
     -g \
     -gl \
     -vewnhibq \
-    -Fu"$root/src/core" \
-    -Fu"$root/src/terminal" \
-    -Fu"$root/src/rendering" \
-    -Fu"$root/tests" \
+    "${args[@]}" \
     -FU"$unit_out" \
     -FE"$out" \
     -o"$output" \
     "$source"
+}
+
+lux_portable_paths() {
+  local root="$1"
+  printf '%s\n' \
+    "$root/src/core" \
+    "$root/src/terminal" \
+    "$root/src/rendering" \
+    "$root/tests"
+}
+
+lux_unix_paths() {
+  local root="$1"
+  lux_portable_paths "$root"
+  printf '%s\n' "$root/src/platform/unix"
 }

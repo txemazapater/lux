@@ -29,8 +29,6 @@ type
     LastError: DWORD;
   end;
 
-  ELuxTerminalUnavailable = class(Exception);
-
   ELuxWindowsTerminal = class(Exception)
   private
     FErrorCode: DWORD;
