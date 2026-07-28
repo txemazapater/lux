@@ -17,13 +17,14 @@ Applications
 
 - `core` depends only on the Free Pascal RTL.
 - `rendering` depends on `core`.
+- `rendering` may also use `terminal` writer interfaces and ANSI helpers (see `docs/adr/0001-renderer-depends-on-terminal.md`).
 - `events` depends on `core`.
 - `terminal` depends on `core` and exposes terminal-oriented interfaces.
 - `platform` implements OS-specific services behind interfaces.
 - `controls` depends on `core`, `rendering` and `events`.
 - Applications depend on public LUX units only.
 
-Circular dependencies are forbidden.
+Circular dependencies are forbidden. Surfaces must not depend on terminal or platform units.
 
 ## Portable core
 

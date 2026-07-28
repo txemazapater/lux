@@ -10,6 +10,10 @@ uses
   Lux.Color,
   Lux.Cell,
   Lux.Surface,
+  Lux.Terminal.Writer,
+  Lux.Terminal.Ansi,
+  Lux.Terminal.MemoryWriter,
+  Lux.Renderer,
   Lux.TestHarness;
 
 procedure TestVersion;
@@ -93,7 +97,6 @@ begin
     LuxCheckEqualStr('#', S.Cells[2, 1].Text, 'fill rect second cell');
     LuxCheckEqualStr(' ', S.Cells[0, 1].Text, 'outside fill untouched');
 
-    { Clipped fill must not raise or corrupt memory. }
     S.FillRect(LuxRect(-1, -1, 3, 3), LuxCellMake('X', 1, LuxColorDefault,
       LuxColorDefault, []));
     LuxCheckEqualStr('X', S.Cells[0, 0].Text, 'clipped fill writes visible part');
@@ -107,18 +110,16 @@ begin
     LuxCheck(tsBold in S.Cells[1, 0].Style, 'puttext style');
 
     S.Clear;
-    S.PutText(0, 1, WideChar($4E00)); { 一 }
+    S.PutText(0, 1, WideChar($4E00));
     LuxCheckEqualInt(2, S.Cells[0, 1].Width, 'wide primary width');
     LuxCheckEqualInt(0, S.Cells[1, 1].Width, 'wide continuation width');
     LuxCheckEqualStr('', S.Cells[1, 1].Text, 'wide continuation text');
 
-    { Wide glyph at last column collapses to narrow space. }
     S.Clear;
     S.PutText(4, 0, WideChar($4E00));
     LuxCheckEqualInt(1, S.Cells[4, 0].Width, 'truncated wide becomes narrow');
     LuxCheckEqualStr(' ', S.Cells[4, 0].Text, 'truncated wide replacement');
 
-    { Out of bounds writes are ignored. }
     S.PutCell(100, 100, LuxCellMake('!', 1, LuxColorDefault, LuxColorDefault, []));
     LuxCheck(True, 'oob putcell ignored');
 
@@ -131,11 +132,174 @@ begin
       LuxCheck(S.EqualTo(T), 'equal cleared surfaces');
       T.PutText(0, 0, 'A');
       LuxCheck(not S.EqualTo(T), 'surfaces differ after edit');
+      S.AssignCellsFrom(T);
+      LuxCheck(S.EqualTo(T), 'assign cells from');
     finally
       T.Free;
     end;
   finally
     S.Free;
+  end;
+end;
+
+procedure TestAnsiHelpers;
+begin
+  LuxSection('Lux.Terminal.Ansi');
+  LuxCheckEqualRaw(#27'[2;3H', LuxAnsiCursorMoveTo(2, 3), 'cursor move');
+  LuxCheckEqualRaw(#27'[0m', LuxAnsiResetAttributes, 'reset');
+  LuxCheckEqualRaw(#27'[38;2;1;2;3m', LuxAnsiFgRGB(1, 2, 3), 'fg rgb');
+  LuxCheckEqualRaw(#27'[48;2;4;5;6m', LuxAnsiBgRGB(4, 5, 6), 'bg rgb');
+  LuxCheckEqualRaw(#27'[1m', LuxAnsiApplyStyle([tsBold]), 'bold style');
+  LuxCheckEqualRaw(#27'[?25l', LuxAnsiHideCursor, 'hide cursor');
+  LuxCheckEqualRaw(#27'[?25h', LuxAnsiShowCursor, 'show cursor');
+  LuxCheckEqualRaw(#27'[2J', LuxAnsiClearScreen, 'clear screen');
+end;
+
+procedure TestMemoryWriter;
+var
+  W: TLuxMemoryTerminalWriter;
+begin
+  LuxSection('Lux.Terminal.MemoryWriter');
+  W := TLuxMemoryTerminalWriter.Create;
+  try
+    W.WriteRaw('AB');
+    W.WriteText('C');
+    W.Flush;
+    LuxCheckEqualRaw('ABC', W.Data, 'memory buffer');
+    LuxCheckEqualInt(1, W.FlushCount, 'flush count');
+    LuxCheckEqualInt(1, W.CountRaw('B'), 'count raw');
+    W.Clear;
+    LuxCheckEqualInt(0, W.Length, 'cleared length');
+  finally
+    W.Free;
+  end;
+end;
+
+procedure TestRenderer;
+var
+  WriterObj: TLuxMemoryTerminalWriter;
+  Writer: ILuxTerminalWriter;
+  Renderer: TLuxRenderer;
+  Surface: TLuxSurface;
+  FirstLen: Integer;
+  FgRed: RawByteString;
+begin
+  LuxSection('Lux.Renderer');
+
+  WriterObj := TLuxMemoryTerminalWriter.Create;
+  Writer := WriterObj;
+  Renderer := TLuxRenderer.Create(Writer);
+  Surface := TLuxSurface.Create(4, 2);
+  try
+    FgRed := LuxAnsiFgRGB(255, 0, 0);
+
+    Surface.PutText(0, 0, 'Hi');
+    Renderer.Render(Surface);
+    FirstLen := WriterObj.Length;
+    LuxCheck(FirstLen > 0, 'initial frame emits output');
+    LuxCheck(WriterObj.ContainsRaw(LuxAnsiClearScreen), 'initial clears screen');
+    LuxCheck(WriterObj.ContainsRaw(LuxAnsiHideCursor), 'initial hides cursor');
+    LuxCheck(WriterObj.ContainsRaw(LuxUTF8Bytes('H')), 'initial contains H');
+    LuxCheck(WriterObj.ContainsRaw(LuxUTF8Bytes('i')), 'initial contains i');
+    LuxCheckEqualInt(1, WriterObj.FlushCount, 'initial flush');
+
+    WriterObj.Clear;
+    Renderer.Render(Surface);
+    LuxCheckEqualInt(0, WriterObj.Length, 'unchanged frame emits empty output');
+    LuxCheckEqualInt(1, WriterObj.FlushCount, 'unchanged still flushes');
+
+    WriterObj.Clear;
+    Surface.PutText(2, 0, 'X');
+    Renderer.Render(Surface);
+    LuxCheck(WriterObj.ContainsRaw(LuxUTF8Bytes('X')), 'single cell emits X');
+    LuxCheck(not WriterObj.ContainsRaw(LuxAnsiClearScreen), 'single cell no clear');
+    LuxCheckEqualInt(1, WriterObj.CountRaw(LuxAnsiCursorMoveTo(1, 3)),
+      'single cell one cursor move');
+
+    WriterObj.Clear;
+    Surface.PutText(0, 1, 'AB');
+    Renderer.Render(Surface);
+    LuxCheck(WriterObj.ContainsRaw(LuxUTF8Bytes('AB')), 'contiguous run AB');
+    LuxCheckEqualInt(1, WriterObj.CountRaw(LuxAnsiCursorMoveTo(2, 1)),
+      'contiguous one cursor move');
+
+    WriterObj.Clear;
+    Surface.PutText(0, 0, 'Q');
+    Surface.PutText(3, 1, 'Z');
+    Renderer.Render(Surface);
+    LuxCheck(WriterObj.ContainsRaw(LuxUTF8Bytes('Q')), 'separated Q');
+    LuxCheck(WriterObj.ContainsRaw(LuxUTF8Bytes('Z')), 'separated Z');
+    LuxCheckEqualInt(1, WriterObj.CountRaw(LuxAnsiCursorMoveTo(1, 1)), 'move to Q');
+    LuxCheckEqualInt(1, WriterObj.CountRaw(LuxAnsiCursorMoveTo(2, 4)), 'move to Z');
+
+    WriterObj.Clear;
+    Surface.PutText(0, 0, 'R', LuxColorRGB(255, 0, 0), LuxColorDefault, []);
+    Renderer.Render(Surface);
+    LuxCheckEqualInt(1, WriterObj.CountRaw(FgRed), 'colour emitted once');
+    LuxCheck(WriterObj.ContainsRaw(LuxUTF8Bytes('R')), 'coloured glyph');
+
+    { Fresh contiguous dirty run with same colour after clearing glyphs. }
+    WriterObj.Clear;
+    Surface.PutText(0, 0, 'AB', LuxColorDefault, LuxColorDefault, []);
+    Renderer.Render(Surface);
+    Surface.PutText(0, 0, 'RS', LuxColorRGB(255, 0, 0), LuxColorDefault, []);
+    WriterObj.Clear;
+    Renderer.Render(Surface);
+    LuxCheckEqualInt(1, WriterObj.CountRaw(FgRed), 'no redundant fg in run');
+    LuxCheck(WriterObj.ContainsRaw(LuxUTF8Bytes('RS')), 'red run glyphs');
+
+    WriterObj.Clear;
+    Surface.PutText(0, 0, 'B', LuxColorDefault, LuxColorDefault, [tsBold]);
+    Renderer.Render(Surface);
+    LuxCheck(WriterObj.ContainsRaw(LuxAnsiApplyStyle([tsBold])), 'bold style emitted');
+    LuxCheck(WriterObj.ContainsRaw(LuxAnsiResetAttributes), 'style uses reset');
+
+    WriterObj.Clear;
+    Surface.Clear;
+    Renderer.Invalidate;
+    Surface.PutText(0, 0, UnicodeString(WideChar($4E00)));
+    Renderer.Render(Surface);
+    LuxCheck(WriterObj.ContainsRaw(LuxUTF8Bytes(UnicodeString(WideChar($4E00)))),
+      'wide glyph utf8');
+    LuxCheckEqualInt(1, WriterObj.CountRaw(LuxUTF8Bytes(UnicodeString(WideChar($4E00)))),
+      'wide glyph emitted once');
+
+    WriterObj.Clear;
+    Surface.Resize(5, 2);
+    Surface.PutText(0, 0, 'N');
+    Renderer.Render(Surface);
+    LuxCheck(WriterObj.ContainsRaw(LuxAnsiClearScreen), 'resize clears screen');
+
+    WriterObj.Clear;
+    Surface.PutText(1, 0, 'M');
+    Renderer.Invalidate;
+    Renderer.Render(Surface);
+    LuxCheck(WriterObj.ContainsRaw(LuxAnsiClearScreen), 'invalidate clears screen');
+  finally
+    Surface.Free;
+    Renderer.Free;
+    Writer := nil;
+  end;
+
+  { Fresh renderer: sequential glyphs after home need no extra cursor moves. }
+  WriterObj := TLuxMemoryTerminalWriter.Create;
+  Writer := WriterObj;
+  Renderer := TLuxRenderer.Create(Writer);
+  Surface := TLuxSurface.Create(3, 1);
+  try
+    Surface.PutText(0, 0, 'ABC');
+    Renderer.Render(Surface);
+    LuxCheck(WriterObj.ContainsRaw(LuxAnsiCursorHome), 'full paint homes cursor');
+    LuxCheckEqualInt(0, WriterObj.CountRaw(LuxAnsiCursorMoveTo(1, 2)),
+      'no move before B');
+    LuxCheckEqualInt(0, WriterObj.CountRaw(LuxAnsiCursorMoveTo(1, 3)),
+      'no move before C');
+    LuxCheckEqualInt(1, WriterObj.CountRaw(LuxAnsiResetAttributes),
+      'single reset on full paint');
+  finally
+    Surface.Free;
+    Renderer.Free;
+    Writer := nil;
   end;
 end;
 
@@ -145,5 +309,8 @@ begin
   TestGeometry;
   TestColorAndCell;
   TestSurface;
+  TestAnsiHelpers;
+  TestMemoryWriter;
+  TestRenderer;
   Halt(LuxTestExitCode);
 end.

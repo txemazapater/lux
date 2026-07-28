@@ -59,11 +59,11 @@ Both scripts compile `tests/lux_tests.pas` and execute it. A non-zero exit code 
 
 ```bash
 fpc -Mobjfpc -Scghi -O1 -g -gl -vewnhibq \
-  -Fusrc/core -Fusrc/rendering -FUbin/units -FEbin -obin/hello_lux \
+  -Fusrc/core -Fusrc/terminal -Fusrc/rendering -FUbin/units -FEbin -obin/hello_lux \
   examples/hello/hello_lux.pas
 
 fpc -Mobjfpc -Scghi -O1 -g -gl -vewnhibq \
-  -Fusrc/core -Fusrc/rendering -Futests -FUbin/units -FEbin -obin/lux_tests \
+  -Fusrc/core -Fusrc/terminal -Fusrc/rendering -Futests -FUbin/units -FEbin -obin/lux_tests \
   tests/lux_tests.pas
 ```
 

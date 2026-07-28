@@ -54,7 +54,7 @@ This structure is provisional and will evolve as the architecture becomes cleare
 
 ## Status
 
-**Phase 0** complete. **Phase 1** portable rendering core is implemented. See [STATUS.md](STATUS.md), [ROADMAP.md](ROADMAP.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+**Phases 0–2A** complete (foundation, portable surface core, portable ANSI diff renderer). See [STATUS.md](STATUS.md), [ROADMAP.md](ROADMAP.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Building
 

@@ -16,6 +16,8 @@ procedure LuxCheck(ACondition: Boolean; const AMessage: string);
 procedure LuxCheckEqualInt(AExpected, AActual: Integer; const AMessage: string);
 procedure LuxCheckEqualStr(const AExpected, AActual: UnicodeString;
   const AMessage: string);
+procedure LuxCheckEqualRaw(const AExpected, AActual: RawByteString;
+  const AMessage: string);
 procedure LuxSection(const AName: string);
 function LuxTestExitCode: Integer;
 
@@ -50,6 +52,15 @@ begin
   LuxCheck(AExpected = AActual,
     Format('%s (expected "%s", got "%s")',
       [AMessage, string(AExpected), string(AActual)]));
+end;
+
+procedure LuxCheckEqualRaw(const AExpected, AActual: RawByteString;
+  const AMessage: string);
+begin
+  LuxCheck(AExpected = AActual,
+    Format('%s (expected raw len %d, got raw len %d, equal=%s)',
+      [AMessage, Length(AExpected), Length(AActual),
+       BoolToStr(AExpected = AActual, True)]));
 end;
 
 function LuxTestExitCode: Integer;

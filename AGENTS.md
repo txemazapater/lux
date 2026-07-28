@@ -118,4 +118,4 @@ A task is done only when:
 
 ## Current instruction to coding agents
 
-Phase 0 and Phase 1 are complete. Continue with Phase 2 from `ROADMAP.md`: terminal writer interfaces, ANSI sequence generation, frame diff rendering and a memory-backed writer for tests. Do not begin controls yet.
+Phases 0, 1 and 2A are complete. Continue with Phase 3 from `ROADMAP.md`: Windows and Unix platform backends that implement terminal setup/restore and `ILuxTerminalWriter` against a real console. Do not begin controls yet. Keep ANSI generation and the differential renderer portable.

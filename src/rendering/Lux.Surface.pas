@@ -43,6 +43,8 @@ type
     function Contains(AX, AY: Integer): Boolean;
     function Bounds: TLuxRect;
     function EqualTo(AOther: TLuxSurface): Boolean;
+    { Byte-for-byte cell copy without wide-glyph side effects. Sizes must match. }
+    procedure AssignCellsFrom(ASource: TLuxSurface);
 
     property Width: Integer read FWidth;
     property Height: Integer read FHeight;
@@ -283,6 +285,18 @@ begin
     if not LuxCellEqual(FCells[I], AOther.FCells[I]) then
       Exit(False);
   Result := True;
+end;
+
+procedure TLuxSurface.AssignCellsFrom(ASource: TLuxSurface);
+var
+  I: Integer;
+begin
+  if ASource = nil then
+    raise ELuxSurface.Create('AssignCellsFrom requires a source surface.');
+  if (ASource.FWidth <> FWidth) or (ASource.FHeight <> FHeight) then
+    raise ELuxSurface.Create('AssignCellsFrom requires identical dimensions.');
+  for I := 0 to High(FCells) do
+    FCells[I] := ASource.FCells[I];
 end;
 
 end.

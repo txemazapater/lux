@@ -37,6 +37,7 @@ lux_fpc_compile() {
     -gl \
     -vewnhibq \
     -Fu"$root/src/core" \
+    -Fu"$root/src/terminal" \
     -Fu"$root/src/rendering" \
     -Fu"$root/tests" \
     -FU"$unit_out" \

@@ -33,6 +33,7 @@ function Get-LuxUnitPaths {
     param([string]$Root)
     @(
         (Join-Path $Root 'src\core'),
+        (Join-Path $Root 'src\terminal'),
         (Join-Path $Root 'src\rendering'),
         (Join-Path $Root 'tests')
     )

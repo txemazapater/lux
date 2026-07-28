@@ -40,6 +40,8 @@ Exit criteria:
 
 ## Phase 2 - Terminal output
 
+Status: **complete** (Phase 2A portable renderer)
+
 Goal: render virtual surfaces efficiently to ANSI/VT terminals.
 
 - Define terminal writer interfaces.
@@ -53,6 +55,8 @@ Exit criteria:
 
 - A surface can be converted into deterministic ANSI output.
 - Unchanged frames produce no visual output.
+
+Real Windows/Unix console backends remain Phase 3.
 
 ## Phase 3 - Platform abstraction
 
@@ -140,4 +144,4 @@ Git support, repository models and editor semantics belong to Lantern, not the L
 
 ## Current priority
 
-Cursor and other coding agents must work on Phase 2 (terminal output / ANSI renderer) next. Do not begin controls yet.
+Cursor and other coding agents must work on Phase 3 (platform backends: Windows and Unix terminal ownership). Do not begin controls yet. Do not write directly to stdout from the renderer.
