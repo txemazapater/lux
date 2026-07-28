@@ -108,18 +108,20 @@ begin
   end;
 
   Data := '';
-  FillChar(Buf, SizeOf(Buf), 0);
+  FillChar(Buf[0], SizeOf(Buf), 0);
   FS := TFileStream.Create(Path, fmOpenRead or fmShareDenyNone);
   try
     N := FS.Read(Buf[0], SizeOf(Buf));
     SetLength(Data, N);
     if N > 0 then
       Move(Buf[0], Data[1], N);
+    SetCodePage(Data, CP_NONE, False);
   finally
     FS.Free;
   end;
   SysUtils.DeleteFile(Path);
 
+  SetCodePage(Expected, CP_NONE, False);
   LuxCheck(Data = Expected, 'file contains UTF-8 bytes');
 end;
 

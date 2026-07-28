@@ -66,7 +66,7 @@ begin
   while Remaining > 0 do
   begin
     Written := 0;
-    if not WriteFile(FHandle, P^, DWORD(Remaining), Written, nil) then
+    if not WriteFile(FHandle, P[0], DWORD(Remaining), Written, nil) then
       raise ELuxWindowsTerminal.CreateOp('WriteFile', GetLastError);
     if Written = 0 then
       raise ELuxWindowsTerminal.CreateOp('WriteFile(zero bytes)', ERROR_WRITE_FAULT);
