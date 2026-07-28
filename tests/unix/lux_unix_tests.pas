@@ -98,12 +98,12 @@ begin
   try
   Expected := '';
   SetLength(Expected, 5);
+  SetCodePage(Expected, CP_NONE, False);
   Expected[1] := #$41; { A }
   Expected[2] := #$E4; { UTF-8 for U+4E00 }
   Expected[3] := #$B8;
   Expected[4] := #$80;
-  Expected[5] := #$5A; { Z }
-  SetCodePage(Expected, CP_NONE, False);
+  Expected[5] := #$5A; { Z };
 
   Writer.WriteText('A' + UnicodeString(WideChar($4E00)) + 'Z');
   Writer.Flush;
