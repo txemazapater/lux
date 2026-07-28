@@ -121,7 +121,7 @@ Candidate units:
 
 LUX must not render controls directly to the physical terminal.
 
-All visual output is written to a virtual cell surface. A renderer compares the current frame with the previous frame and emits only the terminal changes required.
+All visual output is written to a virtual cell surface. A renderer compares the current frame with the previous frame and emits only the terminal changes required. A full repaint rewrites every cell; it does not require clearing the terminal first.
 
 Initial cell model:
 

@@ -3,6 +3,9 @@ unit Lux.Renderer;
 
 {$mode objfpc}{$H+}
 
+{ Define LUX_RESIZE_TRACE to log full/diff paint choices to stderr. }
+{.$DEFINE LUX_RESIZE_TRACE}
+
 interface
 
 uses
@@ -16,7 +19,12 @@ uses
 type
   ELuxRenderer = class(Exception);
 
-  { Compares successive frames and emits the minimal ANSI required. }
+  { Compares successive frames and emits the minimal ANSI required.
+
+    Full repaint means every cell of the current surface is rewritten. It does
+    not imply erasing the terminal first (no ESC[2J). When the surface shrinks,
+    leftover glyphs outside the new bounds are cleared with erase-to-end
+    sequences so the update stays differential in spirit. }
   TLuxRenderer = class
   private
     FWriter: ILuxTerminalWriter;
@@ -30,13 +38,17 @@ type
     FCursorVisible: Boolean;
     FInvalidated: Boolean;
     FHasPrevious: Boolean;
+    FLastWasFullRepaint: Boolean;
     procedure ResetTrackedState;
     procedure EmitRaw(const AData: RawByteString);
+    procedure EnsureCursorHidden;
     procedure EnsureCursorAt(AX, AY: Integer);
     procedure EnsureAttributes(const AForeground, ABackground: TLuxColor;
       const AStyle: TLuxTextStyle);
     procedure EmitCellGlyph(const ACell: TLuxCell);
     procedure PaintCell(AX, AY: Integer; const ACell: TLuxCell);
+    procedure EraseShrinkArtifacts(AOldWidth, AOldHeight, ANewWidth,
+      ANewHeight: Integer);
     procedure PaintAll(ASurface: TLuxSurface);
     procedure PaintDiff(ASurface: TLuxSurface);
     function CellDirty(ASurface: TLuxSurface; AX, AY: Integer): Boolean;
@@ -47,7 +59,7 @@ type
     constructor Create(AWriter: ILuxTerminalWriter);
     destructor Destroy; override;
 
-    { Force the next Render to redraw the entire frame. }
+    { Force the next Render to rewrite every cell (no terminal clear). }
     procedure Invalidate;
     { Diff ASurface against the previous frame and write ANSI output. }
     procedure Render(ASurface: TLuxSurface);
@@ -56,6 +68,7 @@ type
     property CursorY: Integer read FCursorY;
     property CursorVisible: Boolean read FCursorVisible;
     property Invalidated: Boolean read FInvalidated;
+    property LastWasFullRepaint: Boolean read FLastWasFullRepaint;
   end;
 
 implementation
@@ -70,6 +83,7 @@ begin
   FHasPrevious := False;
   FInvalidated := True;
   FCursorVisible := True;
+  FLastWasFullRepaint := False;
   ResetTrackedState;
 end;
 
@@ -99,6 +113,14 @@ end;
 procedure TLuxRenderer.Invalidate;
 begin
   FInvalidated := True;
+end;
+
+procedure TLuxRenderer.EnsureCursorHidden;
+begin
+  if not FCursorVisible then
+    Exit;
+  EmitRaw(LuxAnsiHideCursor);
+  FCursorVisible := False;
 end;
 
 procedure TLuxRenderer.EnsureCursorAt(AX, AY: Integer);
@@ -186,15 +208,50 @@ begin
   Result := not LuxCellEqual(ASurface.Cells[AX, AY], FPrevious.Cells[AX, AY]);
 end;
 
+procedure TLuxRenderer.EraseShrinkArtifacts(AOldWidth, AOldHeight, ANewWidth,
+  ANewHeight: Integer);
+var
+  Y: Integer;
+begin
+  if (AOldWidth <= ANewWidth) and (AOldHeight <= ANewHeight) then
+    Exit;
+
+  EmitRaw(LuxAnsiResetAttributes);
+  FAttrsKnown := True;
+  FForeground := LuxColorDefault;
+  FBackground := LuxColorDefault;
+  FStyle := [];
+
+  if AOldWidth > ANewWidth then
+    for Y := 0 to ANewHeight - 1 do
+    begin
+      EnsureCursorAt(ANewWidth, Y);
+      EmitRaw(LuxAnsiEraseToEndOfLine);
+    end;
+
+  if AOldHeight > ANewHeight then
+  begin
+    EnsureCursorAt(0, ANewHeight);
+    EmitRaw(LuxAnsiEraseToEndOfScreen);
+  end;
+end;
+
 procedure TLuxRenderer.PaintAll(ASurface: TLuxSurface);
 var
   X, Y: Integer;
   Cell: TLuxCell;
+  OldW, OldH: Integer;
 begin
-  EmitRaw(LuxAnsiHideCursor);
-  FCursorVisible := False;
+  OldW := 0;
+  OldH := 0;
+  if FHasPrevious and (FPrevious <> nil) then
+  begin
+    OldW := FPrevious.Width;
+    OldH := FPrevious.Height;
+  end;
+
+  EnsureCursorHidden;
   EmitRaw(LuxAnsiResetAttributes);
-  EmitRaw(LuxAnsiClearScreen);
   EmitRaw(LuxAnsiCursorHome);
   ResetTrackedState;
   FCursorX := 0;
@@ -222,6 +279,9 @@ begin
         Inc(X);
     end;
   end;
+
+  if (OldW > 0) and (OldH > 0) then
+    EraseShrinkArtifacts(OldW, OldH, ASurface.Width, ASurface.Height);
 end;
 
 procedure TLuxRenderer.PaintDiff(ASurface: TLuxSurface);
@@ -229,6 +289,7 @@ var
   X, Y, RunStart, RunX: Integer;
   Cell, RunCell: TLuxCell;
 begin
+  EnsureCursorHidden;
   for Y := 0 to ASurface.Height - 1 do
   begin
     X := 0;
@@ -300,11 +361,22 @@ begin
 end;
 
 procedure TLuxRenderer.Render(ASurface: TLuxSurface);
+var
+  Full: Boolean;
 begin
   if ASurface = nil then
     raise ELuxRenderer.Create('Renderer.Render requires a surface.');
 
-  if NeedsFullRepaint(ASurface) then
+  Full := NeedsFullRepaint(ASurface);
+  FLastWasFullRepaint := Full;
+
+  {$IFDEF LUX_RESIZE_TRACE}
+  WriteLn(StdErr, Format('LUX render: full=%s size=%dx%d invalidated=%s',
+    [BoolToStr(Full, True), ASurface.Width, ASurface.Height,
+     BoolToStr(FInvalidated, True)]));
+  {$ENDIF}
+
+  if Full then
     PaintAll(ASurface)
   else
     PaintDiff(ASurface);

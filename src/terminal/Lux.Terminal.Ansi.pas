@@ -28,6 +28,9 @@ function LuxAnsiApplyStyle(const AStyle: TLuxTextStyle): RawByteString;
 
 function LuxAnsiClearScreen: RawByteString;
 function LuxAnsiClearLine: RawByteString;
+{ Erase from cursor to end of line / screen (does not move the cursor). }
+function LuxAnsiEraseToEndOfLine: RawByteString;
+function LuxAnsiEraseToEndOfScreen: RawByteString;
 
 { Alternate screen buffer (xterm). }
 function LuxAnsiEnterAltScreen: RawByteString;
@@ -144,6 +147,16 @@ end;
 function LuxAnsiClearLine: RawByteString;
 begin
   Result := LuxAnsiCSI('2K');
+end;
+
+function LuxAnsiEraseToEndOfLine: RawByteString;
+begin
+  Result := LuxAnsiCSI('0K');
+end;
+
+function LuxAnsiEraseToEndOfScreen: RawByteString;
+begin
+  Result := LuxAnsiCSI('0J');
 end;
 
 function LuxAnsiEnterAltScreen: RawByteString;

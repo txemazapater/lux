@@ -49,6 +49,8 @@ The surface API is responsible for:
 
 The application produces a new frame in memory. The renderer compares it with the previous frame, groups changed cells into runs and asks a terminal writer to emit the smallest practical output.
 
+A **full repaint** rewrites every cell. It does not clear the terminal (`ESC[2J`). When the surface shrinks, leftover glyphs outside the new bounds are cleared with erase-to-end sequences. See `docs/adr/0006-full-repaint-without-clear.md`.
+
 The renderer must track terminal state such as cursor position, foreground colour, background colour and text style to avoid redundant sequences.
 
 ## Platform boundary
@@ -88,7 +90,7 @@ Portable controls live under `src/controls` and must not reference platform unit
 
 ## Application loop
 
-`TLuxApplication` runs on a single thread: wait → drain timers into the queue → dispatch events one by one → `Update` → render only if invalidated or resized. Session open/restore remains outside `Run` (`try`/`finally` in the example).
+`TLuxApplication` runs on a single thread: wait → drain pending input → collect timers → dispatch events (consecutive resizes coalesced to the latest size) → `Update` → render at most once per iteration if invalidated or resized. Session open/restore remains outside `Run` (`try`/`finally` in the example).
 
 `TLuxControlApplication` extends the loop with control routing and root rendering without platform conditionals.
 

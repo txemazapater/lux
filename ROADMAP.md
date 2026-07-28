@@ -112,7 +112,7 @@ Exit criteria:
 
 ## Phase 5 - Control foundation
 
-Status: **complete** (plus Phase 5.1 Windows keyboard verification)
+Status: **complete** (plus Phase 5.1 Windows keyboard verification and Phase 5.2 resize/repaint stability)
 
 Goal: create a small composable control hierarchy.
 
@@ -128,7 +128,18 @@ Exit criteria:
 
 - A small interactive dialog can be built without direct surface access from application code.
 
+### Phase 5.2 — Resize and repaint stability
+
+Status: **complete**
+
+- Full repaint rewrites cells without `ESC[2J`.
+- Shrink uses erase-to-end sequences for leftover strips.
+- Application coalesces consecutive resize events (single-threaded, no timers).
+- See `docs/phase-5.2-resize-repaint.md` and `docs/adr/0006-full-repaint-without-clear.md`.
+
 ## Phase 6 - Layout and common controls
+
+Status: **not started** (blocked until Phase 5.2 stays verified)
 
 - Dock layout.
 - Stack layout.
@@ -165,4 +176,4 @@ Git support, repository models and editor semantics belong to Lantern, not the L
 
 ## Current priority
 
-Phase 5 and Phase 5.1 (Windows keyboard verification) are closed. Begin Phase 6 — layout and common controls. Do not pull Lantern-specific widgets into the LUX core.
+Phases 5, 5.1 and 5.2 are closed. Begin Phase 6 — layout and common controls — only after resize/repaint remains stable on Windows and Linux CI. Do not pull Lantern-specific widgets into the LUX core.

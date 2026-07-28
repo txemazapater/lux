@@ -4,22 +4,28 @@ Last updated: 2026-07-28
 
 ## Current phase
 
-**Phase 5.1 — Windows keyboard input verification** — **complete**
+**Phase 5.2 — Resize and repaint stability** — **complete**
 
-Phases 0–5 and 5.1 are complete. Phase 6 (layout and common controls) is next and has not started.
+Phases 0–5, 5.1 and 5.2 are complete. Phase 6 (layout and common controls) is next and has not started.
+
+## Phase 5.2 — Resize and repaint stability
+
+Manual Windows resize showed severe flicker (UI blanking while dragging the console border).
+
+Root cause: `PaintAll` emitted `ESC[2J` on every full repaint, and the loop often painted once per `WINDOW_BUFFER_SIZE_EVENT` without coalescing.
+
+Fix:
+
+- Full repaint rewrites all cells; it does **not** clear the screen.
+- Shrink clears leftover strips with `ESC[0K` / `ESC[0J` only.
+- Application drains pending input after wait and coalesces consecutive `ekResize` to the latest size before paint.
+- Diagnosis: `docs/phase-5.2-resize-repaint.md`; ADR: `docs/adr/0006-full-repaint-without-clear.md`.
 
 ## Phase 5.1 — Windows keyboard verification
 
 Detected during manual `controls_demo_windows`: Space activated the focused button, but Tab / Shift+Tab / Enter did not.
 
-Root cause: `TLuxWindowsTerminalSession.ApplyInputModes` preferred `ENABLE_VIRTUAL_TERMINAL_INPUT` while the event source reads `INPUT_RECORD` via `ReadConsoleInputW`. VT input interfered with logical key delivery (Tab/Enter) while printable characters (including Space) still arrived.
-
-Fix:
-
-- Keep stdin on the Win32 record path: WINDOW_INPUT + MOUSE_INPUT, no VT input, no PROCESSED/LINE/ECHO/QUICK_EDIT.
-- Translate `wVirtualKeyCode` before Unicode fallback; never drop logical keys with `UnicodeChar = #0`.
-- Emit LUX key events only for key-down (ignore key-up).
-- Diagnostic tool: `examples/input_inspector/`.
+Root cause: `ENABLE_VIRTUAL_TERMINAL_INPUT` on stdin while using `ReadConsoleInputW`. Fix: Win32 record path without VT input; VK-first translation; ignore key-up. Inspector: `examples/input_inspector/`.
 
 ## Phase 5 — Control foundation
 
@@ -42,11 +48,10 @@ Fix:
 |------|--------|
 | Host (dev) | Windows x86_64 FPC 3.2.2 — portable + Windows paths |
 | Portable isolation | passed (includes `src/controls`) |
-| Portable tests | **167 passed** (local Windows + Linux CI) |
+| Portable tests | **197 passed** (local Windows) |
 | Windows unit tests | **68 passed** (local; live injection skipped when redirected) |
-| `controls_demo_windows` | keyboard path corrected; please confirm Tab/Enter/Space manually |
-| `input_inspector_windows` | builds for live KEY_EVENT diagnosis |
-| CI | **green** on `main` |
+| Resize flicker | fixed in renderer + loop; confirm manually with demos |
+| CI | push Phase 5.2 then confirm Linux green |
 
 ## Commands
 
@@ -57,7 +62,7 @@ powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Target all
 powershell -ExecutionPolicy Bypass -File tools\test.ps1
 powershell -ExecutionPolicy Bypass -File tools\test_windows.ps1
 .\bin\controls_demo_windows.exe
-.\bin\input_inspector_windows.exe
+.\bin\eventloop_windows.exe
 ```
 
 Linux:
@@ -71,4 +76,4 @@ Linux:
 
 ## Next
 
-Begin Phase 6 — layout and common controls — only after Phase 5.1 remains green on Windows locally and Linux CI.
+Begin Phase 6 — layout and common controls — only after Phase 5.2 remains green on Windows locally and Linux CI, and manual resize looks stable.

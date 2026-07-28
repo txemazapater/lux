@@ -118,4 +118,4 @@ A task is done only when:
 
 ## Current instruction to coding agents
 
-Phases 0–5 and 5.1 (Windows keyboard verification) are complete. Phase 6 (layout and common controls) is next. Keep ANSI generation and the differential renderer portable. Keep Win32 in `src/platform/windows` and termios in `src/platform/unix`. Keep controls in `src/controls` free of platform units. Do not start Phase 6 until Phase 5.1 remains verified.
+Phases 0–5, 5.1 and 5.2 (resize/repaint stability) are complete. Do not begin Phase 6 (layouts / new controls) until Phase 5.2 remains verified on Windows and Linux CI. Keep ANSI generation and the differential renderer portable. Keep Win32 in `src/platform/windows` and termios in `src/platform/unix`. Keep controls in `src/controls` free of platform units. Full repaint means rewrite all cells, not erase the terminal (`docs/adr/0006-full-repaint-without-clear.md`).

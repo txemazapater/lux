@@ -22,6 +22,9 @@ type
     processed one at a time from the queue. Timers are collected before waiting
     and after each wait. Repaint occurs once per loop iteration after event
     dispatch, and only when Invalidate was requested or a resize forced it.
+    Back-to-back resize events in the queue are coalesced to the latest size
+    before painting. Pending input is drained after each wait so coalescing
+    can see multiple WINDOW_BUFFER_SIZE_EVENT results in one iteration.
 
     Does not know about widgets, focus, layout or mouse capture. }
   TLuxApplication = class
@@ -39,6 +42,8 @@ type
     function CombinedWaitTimeoutMs: Integer;
     procedure HandleResize(const AResize: TLuxResizeEvent);
     procedure DispatchEvent(const Event: TLuxEvent);
+    procedure DrainAvailableInput;
+    procedure DispatchQueuedEvents;
   protected
     { Return True if the event was fully handled. }
     function HandleEvent(const Event: TLuxEvent): Boolean; virtual;
@@ -51,6 +56,8 @@ type
     destructor Destroy; override;
 
     procedure Run;
+    { Dispatch queued events, Update, and paint if needed. Does not wait. }
+    procedure ProcessPending;
     procedure RequestQuit;
     procedure Invalidate;
     procedure PostEvent(const Event: TLuxEvent);
@@ -213,6 +220,49 @@ begin
   end;
 end;
 
+procedure TLuxApplication.DrainAvailableInput;
+var
+  Ev: TLuxEvent;
+begin
+  while FSource.PollEvent(Ev) do
+    FQueue.Push(Ev);
+end;
+
+procedure TLuxApplication.DispatchQueuedEvents;
+var
+  Ev, Next: TLuxEvent;
+begin
+  while FQueue.TryPop(Ev) do
+  begin
+    { Coalesce back-to-back resizes so only the latest size is applied
+      before the next paint. Single-threaded; no timers. }
+    if Ev.Kind = ekResize then
+      while FQueue.Peek(Next) and (Next.Kind = ekResize) do
+        FQueue.TryPop(Ev);
+
+    DispatchEvent(Ev);
+    if FQuit then
+      Break;
+  end;
+end;
+
+procedure TLuxApplication.ProcessPending;
+begin
+  FTimers.CollectDueToQueue(FQueue);
+  DispatchQueuedEvents;
+  if FQuit then
+    Exit;
+
+  Update;
+
+  if FNeedsPaint and (not FQuit) then
+  begin
+    RenderContent(FSurface);
+    FRenderer.Render(FSurface);
+    FNeedsPaint := False;
+  end;
+end;
+
 procedure TLuxApplication.Run;
 var
   Ev: TLuxEvent;
@@ -230,24 +280,12 @@ begin
         WaitMs := CombinedWaitTimeoutMs;
         if FSource.WaitEvent(Ev, WaitMs) then
           FQueue.Push(Ev);
+        { Pull any further events already pending so resizes can coalesce. }
+        DrainAvailableInput;
         FTimers.CollectDueToQueue(FQueue);
       end;
 
-      while FQueue.TryPop(Ev) do
-      begin
-        DispatchEvent(Ev);
-        if FQuit then
-          Break;
-      end;
-
-      Update;
-
-      if FNeedsPaint and (not FQuit) then
-      begin
-        RenderContent(FSurface);
-        FRenderer.Render(FSurface);
-        FNeedsPaint := False;
-      end;
+      ProcessPending;
     end;
   finally
     { Session restore is the caller's responsibility (try/finally around Run). }

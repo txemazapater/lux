@@ -18,6 +18,7 @@ uses
   Lux.EventQueue,
   Lux.Timers,
   Lux.EventSource,
+  Lux.Application,
   Lux.Control,
   Lux.ControlContainer,
   Lux.FocusManager,
@@ -51,6 +52,14 @@ type
     function Feed(const Event: TLuxEvent): Boolean;
   end;
 
+  TResizeProbeApp = class(TLuxApplication)
+  public
+    ResizeCalls: Integer;
+    LastResizeW: Integer;
+    LastResizeH: Integer;
+    procedure OnResize(AWidth, AHeight: Integer); override;
+  end;
+
 function TFakeClock.NowMs: TLuxTimeMs;
 begin
   Result := NowValue;
@@ -76,6 +85,13 @@ end;
 function TTestControlApp.Feed(const Event: TLuxEvent): Boolean;
 begin
   Result := HandleEvent(Event);
+end;
+
+procedure TResizeProbeApp.OnResize(AWidth, AHeight: Integer);
+begin
+  Inc(ResizeCalls);
+  LastResizeW := AWidth;
+  LastResizeH := AHeight;
 end;
 
 procedure TestVersion;
@@ -215,6 +231,8 @@ begin
   LuxCheckEqualRaw(#27'[?25l', LuxAnsiHideCursor, 'hide cursor');
   LuxCheckEqualRaw(#27'[?25h', LuxAnsiShowCursor, 'show cursor');
   LuxCheckEqualRaw(#27'[2J', LuxAnsiClearScreen, 'clear screen');
+  LuxCheckEqualRaw(#27'[0K', LuxAnsiEraseToEndOfLine, 'erase to end of line');
+  LuxCheckEqualRaw(#27'[0J', LuxAnsiEraseToEndOfScreen, 'erase to end of screen');
 end;
 
 procedure TestMemoryWriter;
@@ -259,11 +277,14 @@ begin
     Renderer.Render(Surface);
     FirstLen := WriterObj.Length;
     LuxCheck(FirstLen > 0, 'initial frame emits output');
-    LuxCheck(WriterObj.ContainsRaw(LuxAnsiClearScreen), 'initial clears screen');
+    LuxCheck(not WriterObj.ContainsRaw(LuxAnsiClearScreen),
+      'initial full paint does not clear screen');
     LuxCheck(WriterObj.ContainsRaw(LuxAnsiHideCursor), 'initial hides cursor');
+    LuxCheck(WriterObj.ContainsRaw(LuxAnsiCursorHome), 'initial homes cursor');
     LuxCheck(WriterObj.ContainsRaw(LuxUTF8Bytes('H')), 'initial contains H');
     LuxCheck(WriterObj.ContainsRaw(LuxUTF8Bytes('i')), 'initial contains i');
     LuxCheckEqualInt(1, WriterObj.FlushCount, 'initial flush');
+    LuxCheck(Renderer.LastWasFullRepaint, 'initial was full');
 
     WriterObj.Clear;
     Renderer.Render(Surface);
@@ -330,13 +351,43 @@ begin
     Surface.Resize(5, 2);
     Surface.PutText(0, 0, 'N');
     Renderer.Render(Surface);
-    LuxCheck(WriterObj.ContainsRaw(LuxAnsiClearScreen), 'resize clears screen');
+    LuxCheck(not WriterObj.ContainsRaw(LuxAnsiClearScreen),
+      'grow resize does not clear screen');
+    LuxCheck(Renderer.LastWasFullRepaint, 'grow was full repaint');
+    LuxCheck(WriterObj.ContainsRaw(LuxUTF8Bytes('N')), 'grow paints content');
+
+    WriterObj.Clear;
+    Surface.PutText(1, 0, 'M');
+    Renderer.Render(Surface);
+    LuxCheck(not Renderer.LastWasFullRepaint, 'after grow returns to diff');
+    LuxCheck(not WriterObj.ContainsRaw(LuxAnsiClearScreen), 'diff no clear');
+    LuxCheck(WriterObj.ContainsRaw(LuxUTF8Bytes('M')), 'diff paints M');
 
     WriterObj.Clear;
     Surface.PutText(1, 0, 'M');
     Renderer.Invalidate;
     Renderer.Render(Surface);
-    LuxCheck(WriterObj.ContainsRaw(LuxAnsiClearScreen), 'invalidate clears screen');
+    LuxCheck(not WriterObj.ContainsRaw(LuxAnsiClearScreen),
+      'invalidate full paint does not clear screen');
+    LuxCheck(Renderer.LastWasFullRepaint, 'invalidate was full');
+
+    { Shrink: leftover columns/rows must be erased without ESC[2J. }
+    WriterObj.Clear;
+    Surface.Resize(2, 1);
+    Surface.PutText(0, 0, 'Z');
+    Renderer.Render(Surface);
+    LuxCheck(not WriterObj.ContainsRaw(LuxAnsiClearScreen),
+      'shrink does not clear screen');
+    LuxCheck(Renderer.LastWasFullRepaint, 'shrink was full');
+    LuxCheck(WriterObj.ContainsRaw(LuxAnsiEraseToEndOfLine) or
+      WriterObj.ContainsRaw(LuxAnsiEraseToEndOfScreen),
+      'shrink erases leftover region');
+    LuxCheck(WriterObj.ContainsRaw(LuxUTF8Bytes('Z')), 'shrink paints Z');
+
+    WriterObj.Clear;
+    Surface.PutText(1, 0, 'Y');
+    Renderer.Render(Surface);
+    LuxCheck(not Renderer.LastWasFullRepaint, 'after shrink returns to diff');
   finally
     Surface.Free;
     Renderer.Free;
@@ -361,6 +412,89 @@ begin
   finally
     Surface.Free;
     Renderer.Free;
+    Writer := nil;
+  end;
+
+  { Width-only and height-only shrink erase paths. }
+  WriterObj := TLuxMemoryTerminalWriter.Create;
+  Writer := WriterObj;
+  Renderer := TLuxRenderer.Create(Writer);
+  Surface := TLuxSurface.Create(4, 2);
+  try
+    Surface.PutText(0, 0, 'ABCD');
+    Surface.PutText(0, 1, 'EFGH');
+    Renderer.Render(Surface);
+
+    WriterObj.Clear;
+    Surface.Resize(2, 2);
+    Surface.PutText(0, 0, 'AB');
+    Surface.PutText(0, 1, 'EF');
+    Renderer.Render(Surface);
+    LuxCheck(WriterObj.ContainsRaw(LuxAnsiEraseToEndOfLine),
+      'width shrink uses erase EOL');
+    LuxCheck(not WriterObj.ContainsRaw(LuxAnsiClearScreen),
+      'width shrink no clear screen');
+
+    WriterObj.Clear;
+    Surface.Resize(2, 1);
+    Surface.PutText(0, 0, 'AB');
+    Renderer.Render(Surface);
+    LuxCheck(WriterObj.ContainsRaw(LuxAnsiEraseToEndOfScreen),
+      'height shrink uses erase EOS');
+    LuxCheck(not WriterObj.ContainsRaw(LuxAnsiClearScreen),
+      'height shrink no clear screen');
+  finally
+    Surface.Free;
+    Renderer.Free;
+    Writer := nil;
+  end;
+end;
+
+procedure TestResizeCoalesce;
+var
+  WriterObj: TLuxMemoryTerminalWriter;
+  Writer: ILuxTerminalWriter;
+  Source: ILuxEventSource;
+  App: TResizeProbeApp;
+  FlushBefore: Integer;
+begin
+  LuxSection('Lux.Application resize coalesce');
+  WriterObj := TLuxMemoryTerminalWriter.Create;
+  Writer := WriterObj;
+  Source := TFakeEventSource.Create;
+  App := TResizeProbeApp.Create(Writer, Source, 10, 5);
+  try
+    App.ProcessPending;
+    LuxCheck(App.Renderer.LastWasFullRepaint, 'initial paint full');
+    FlushBefore := WriterObj.FlushCount;
+
+    App.PostEvent(LuxEventResize(12, 6));
+    App.PostEvent(LuxEventResize(14, 7));
+    App.PostEvent(LuxEventResize(16, 8));
+    App.PostEvent(LuxEventResize(20, 10));
+    App.ProcessPending;
+
+    LuxCheckEqualInt(1, App.ResizeCalls, 'coalesce to one OnResize');
+    LuxCheckEqualInt(20, App.LastResizeW, 'final width applied');
+    LuxCheckEqualInt(10, App.LastResizeH, 'final height applied');
+    LuxCheckEqualInt(20, App.Width, 'app width final');
+    LuxCheckEqualInt(10, App.Height, 'app height final');
+    LuxCheckEqualInt(FlushBefore + 1, WriterObj.FlushCount,
+      'one paint after coalesced resizes');
+    LuxCheck(App.Renderer.LastWasFullRepaint, 'resize paint was full');
+    LuxCheck(not WriterObj.ContainsRaw(LuxAnsiClearScreen),
+      'coalesced resize paint no clear');
+
+    WriterObj.Clear;
+    App.Surface.PutText(0, 0, 'A');
+    App.Invalidate;
+    App.ProcessPending;
+    LuxCheck(not App.Renderer.LastWasFullRepaint,
+      'after resize returns to differential');
+    LuxCheck(WriterObj.ContainsRaw(LuxUTF8Bytes('A')), 'diff paints A');
+  finally
+    App.Free;
+    Source := nil;
     Writer := nil;
   end;
 end;
@@ -716,6 +850,7 @@ begin
   TestAnsiHelpers;
   TestMemoryWriter;
   TestRenderer;
+  TestResizeCoalesce;
   TestEventsAndQueue;
   TestTimers;
   TestControlOwnership;
