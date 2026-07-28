@@ -1,6 +1,6 @@
 # Build LUX targets with Free Pascal (Windows host).
 param(
-    [ValidateSet('hello', 'tests', 'windows-demo', 'windows-tests', 'eventloop', 'all')]
+    [ValidateSet('hello', 'tests', 'windows-demo', 'windows-tests', 'eventloop', 'controls-demo', 'all')]
     [string]$Target = 'hello',
     [string]$Fpc = $env:FPC
 )
@@ -35,11 +35,15 @@ switch ($Target) {
     'eventloop' {
         Build-One (Join-Path $Root 'examples\eventloop\eventloop_windows.pas') 'eventloop_windows.exe' $windows
     }
+    'controls-demo' {
+        Build-One (Join-Path $Root 'examples\controls_demo\controls_demo_windows.pas') 'controls_demo_windows.exe' $windows
+    }
     'all' {
         Build-One (Join-Path $Root 'examples\hello\hello_lux.pas') 'hello_lux.exe' $portable
         Build-One (Join-Path $Root 'tests\lux_tests.pas') 'lux_tests.exe' $portable
         Build-One (Join-Path $Root 'examples\windows_demo\windows_demo.pas') 'windows_demo.exe' $windows
         Build-One (Join-Path $Root 'tests\windows\lux_windows_tests.pas') 'lux_windows_tests.exe' $windows
         Build-One (Join-Path $Root 'examples\eventloop\eventloop_windows.pas') 'eventloop_windows.exe' $windows
+        Build-One (Join-Path $Root 'examples\controls_demo\controls_demo_windows.pas') 'controls_demo_windows.exe' $windows
     }
 }

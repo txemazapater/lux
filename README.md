@@ -54,7 +54,7 @@ This structure is provisional and will evolve as the architecture becomes cleare
 
 ## Status
 
-**Phases 0–4** complete (foundation, portable core, ANSI diff renderer, Windows + Unix backends, input + application loop). See [STATUS.md](STATUS.md), [ROADMAP.md](ROADMAP.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+**Phases 0–5** complete (foundation, portable core, ANSI diff renderer, platform backends, input loop, control foundation). See [STATUS.md](STATUS.md), [ROADMAP.md](ROADMAP.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Building
 
@@ -68,6 +68,7 @@ powershell -ExecutionPolicy Bypass -File tools\test.ps1
 powershell -ExecutionPolicy Bypass -File tools\test_windows.ps1
 .\bin\hello_lux.exe
 .\bin\windows_demo.exe
+.\bin\controls_demo_windows.exe
 ```
 
 Quick start (Linux):
@@ -78,6 +79,7 @@ Quick start (Linux):
 ./tools/test_unix.sh
 ./bin/hello_lux
 ./bin/unix_demo
+./bin/controls_demo_unix
 ```
 
 Expected toolchain:

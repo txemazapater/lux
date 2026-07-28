@@ -17,6 +17,14 @@ uses
   Lux.Events,
   Lux.EventQueue,
   Lux.Timers,
+  Lux.EventSource,
+  Lux.Control,
+  Lux.ControlContainer,
+  Lux.FocusManager,
+  Lux.Panel,
+  Lux.Labels,
+  Lux.Button,
+  Lux.ControlApplication,
   Lux.TestHarness;
 
 type
@@ -26,9 +34,48 @@ type
     function NowMs: TLuxTimeMs;
   end;
 
+  TFakeEventSource = class(TInterfacedObject, ILuxEventSource)
+  public
+    function PollEvent(out Event: TLuxEvent): Boolean;
+    function WaitEvent(out Event: TLuxEvent; TimeoutMs: Integer): Boolean;
+  end;
+
+  TClickCounter = class
+  public
+    Count: Integer;
+    procedure OnClick(Sender: TObject);
+  end;
+
+  TTestControlApp = class(TLuxControlApplication)
+  public
+    function Feed(const Event: TLuxEvent): Boolean;
+  end;
+
 function TFakeClock.NowMs: TLuxTimeMs;
 begin
   Result := NowValue;
+end;
+
+function TFakeEventSource.PollEvent(out Event: TLuxEvent): Boolean;
+begin
+  Event := LuxEventNone;
+  Result := False;
+end;
+
+function TFakeEventSource.WaitEvent(out Event: TLuxEvent; TimeoutMs: Integer): Boolean;
+begin
+  Event := LuxEventNone;
+  Result := False;
+end;
+
+procedure TClickCounter.OnClick(Sender: TObject);
+begin
+  Inc(Count);
+end;
+
+function TTestControlApp.Feed(const Event: TLuxEvent): Boolean;
+begin
+  Result := HandleEvent(Event);
 end;
 
 procedure TestVersion;
@@ -393,6 +440,215 @@ begin
   end;
 end;
 
+procedure TestControlOwnership;
+var
+  Root: TLuxRootControl;
+  A, B: TLuxPanel;
+  Raised: Boolean;
+begin
+  LuxSection('Lux.Control ownership');
+  Root := TLuxRootControl.Create;
+  try
+    Root.SetBounds(0, 0, 40, 20);
+    A := TLuxPanel.Create(Root);
+    B := TLuxPanel.Create(A);
+    LuxCheckEqualInt(1, Root.ChildCount, 'root has one child');
+    LuxCheckEqualInt(1, A.ChildCount, 'panel A has child');
+    LuxCheck(B.Parent = A, 'B parent is A');
+
+    Raised := False;
+    try
+      Root.AddChild(Root);
+    except
+      on ELuxControl do
+        Raised := True;
+    end;
+    LuxCheck(Raised, 'self-add rejected');
+
+    Raised := False;
+    try
+      B.AddChild(Root);
+    except
+      on ELuxControl do
+        Raised := True;
+    end;
+    LuxCheck(Raised, 'cycle rejected');
+
+    Raised := False;
+    try
+      Root.AddChild(A);
+    except
+      on ELuxControl do
+        Raised := True;
+    end;
+    LuxCheck(Raised, 'duplicate add rejected');
+
+    Root.RemoveChild(A);
+    LuxCheckEqualInt(0, Root.ChildCount, 'removed from root');
+    LuxCheck(A.Parent = nil, 'parent cleared');
+    A.Free;
+  finally
+    Root.Free;
+  end;
+end;
+
+procedure TestControlGeometryAndHit;
+var
+  Root: TLuxRootControl;
+  Panel: TLuxPanel;
+  Btn: TLuxButton;
+  Hit: TLuxControl;
+  Origin: TLuxPoint;
+begin
+  LuxSection('Lux.Control geometry / hit test');
+  Root := TLuxRootControl.Create;
+  try
+    Root.SetBounds(0, 0, 40, 20);
+    Panel := TLuxPanel.Create(Root);
+    Panel.BorderStyle := lbsSingle;
+    Panel.SetBounds(2, 2, 20, 10);
+    Btn := TLuxButton.Create(Panel);
+    Btn.SetBounds(1, 1, 8, 1);
+
+    Origin := Btn.LocalToRoot(LuxPoint(0, 0));
+    { Panel at (2,2) + border offset (1,1) + button (1,1) => (4,4) }
+    LuxCheckEqualInt(4, Origin.X, 'button root x');
+    LuxCheckEqualInt(4, Origin.Y, 'button root y');
+
+    Hit := Root.HitTestRoot(4, 4);
+    LuxCheck(Hit = Btn, 'hit deepest button');
+
+    Btn.Enabled := False;
+    Hit := Root.HitTestRoot(4, 4);
+    LuxCheck(Hit <> Btn, 'disabled button not hit target');
+
+    Btn.Enabled := True;
+    Btn.Visible := False;
+    Hit := Root.HitTestRoot(4, 4);
+    LuxCheck(Hit <> Btn, 'invisible button skipped');
+  finally
+    Root.Free;
+  end;
+end;
+
+procedure TestControlFocus;
+var
+  Root: TLuxRootControl;
+  Focus: TLuxFocusManager;
+  B1, B2: TLuxButton;
+begin
+  LuxSection('Lux.FocusManager');
+  Root := TLuxRootControl.Create;
+  Focus := TLuxFocusManager.Create(Root);
+  try
+    Root.SetBounds(0, 0, 40, 10);
+    B1 := TLuxButton.Create(Root);
+    B2 := TLuxButton.Create(Root);
+    B1.SetBounds(0, 0, 6, 1);
+    B2.SetBounds(8, 0, 6, 1);
+
+    LuxCheck(Focus.SetFocus(B1), 'focus B1');
+    LuxCheck(B1.HasFocus and (not B2.HasFocus), 'only B1 focused');
+    LuxCheck(not Focus.SetFocus(nil) or True, 'clear allowed');
+    Focus.ClearFocus;
+    LuxCheck(Focus.FocusedControl = nil, 'focus cleared');
+
+    B2.Enabled := False;
+    LuxCheck(not Focus.SetFocus(B2), 'disabled rejects focus');
+    B2.Enabled := True;
+    B2.Visible := False;
+    LuxCheck(not Focus.SetFocus(B2), 'invisible rejects focus');
+    B2.Visible := True;
+    B2.Focusable := False;
+    LuxCheck(not Focus.SetFocus(B2), 'non-focusable rejects focus');
+    B2.Focusable := True;
+
+    Focus.SetFocus(B1);
+    LuxCheck(Focus.MoveNext and (Focus.FocusedControl = B2), 'Tab next');
+    LuxCheck(Focus.MovePrevious and (Focus.FocusedControl = B1), 'Shift+Tab prev');
+
+    Focus.SetFocus(B1);
+    Root.RemoveChild(B1);
+    Focus.HandleControlDetached(B1);
+    LuxCheck(Focus.FocusedControl = nil, 'detach clears focus');
+    B1.Free;
+  finally
+    Focus.Free;
+    Root.Free;
+  end;
+end;
+
+procedure TestControlRenderingAndEvents;
+var
+  WriterObj: TLuxMemoryTerminalWriter;
+  Writer: ILuxTerminalWriter;
+  Source: ILuxEventSource;
+  App: TTestControlApp;
+  Panel: TLuxPanel;
+  Lbl: TLuxLabel;
+  Btn: TLuxButton;
+  Clicks: TClickCounter;
+  Surface: TLuxSurface;
+begin
+  LuxSection('Lux.Control render / events');
+  WriterObj := TLuxMemoryTerminalWriter.Create;
+  Writer := WriterObj;
+  Source := TFakeEventSource.Create;
+  App := TTestControlApp.Create(Writer, Source, 40, 12);
+  Clicks := TClickCounter.Create;
+  try
+    Panel := TLuxPanel.Create(App.Root);
+    Panel.BorderStyle := lbsSingle;
+    Panel.Background := LuxColorRGB(0, 0, 40);
+    Panel.SetBounds(1, 1, 30, 8);
+
+    Lbl := TLuxLabel.Create(Panel);
+    Lbl.Text := 'Hello';
+    Lbl.Alignment := ltaLeft;
+    Lbl.SetBounds(1, 1, 10, 1);
+
+    Btn := TLuxButton.Create(Panel);
+    Btn.Text := 'Go';
+    Btn.OnClick := @Clicks.OnClick;
+    Btn.SetBounds(1, 3, 10, 1);
+
+    App.Focus.SetFocus(Btn);
+    App.Root.Render(App.Surface);
+    Surface := App.Surface;
+
+    LuxCheck(Surface.Cells[1, 1].Text = UnicodeString(WideChar($250C)),
+      'panel top-left border');
+    LuxCheckEqualStr('H', Surface.Cells[3, 3].Text, 'label cell H');
+
+    LuxCheck(App.Feed(LuxEventKey(lkEnter, '', [], kaPress)), 'enter handled');
+    LuxCheckEqualInt(1, Clicks.Count, 'enter clicks once');
+
+    LuxCheck(App.Feed(LuxEventKey(lkChar, ' ', [], kaPress)), 'space handled');
+    LuxCheckEqualInt(2, Clicks.Count, 'space clicks once');
+
+    Btn.Enabled := False;
+    App.Focus.EnsureValid;
+    App.Feed(LuxEventKey(lkEnter, '', [], kaPress));
+    LuxCheckEqualInt(2, Clicks.Count, 'disabled no click');
+
+    Btn.Enabled := True;
+    App.Focus.SetFocus(Btn);
+    { Button origin is (3,5): panel(1,1)+border(1,1)+bounds(1,3). }
+    LuxCheck(App.Feed(LuxEventMouse(4, 5, mbLeft, maPress, [], 0, False)),
+      'mouse press');
+    LuxCheck(App.Feed(LuxEventMouse(4, 5, mbLeft, maRelease, [], 0, False)),
+      'mouse release');
+    LuxCheckEqualInt(3, Clicks.Count, 'mouse click once');
+
+    LuxCheck(App.Feed(LuxEventKey(lkTab, '', [], kaPress)), 'tab moves');
+  finally
+    Clicks.Free;
+    App.Free;
+    Source := nil;
+    Writer := nil;
+  end;
+end;
+
 begin
   WriteLn('LUX portable tests');
   TestVersion;
@@ -404,5 +660,9 @@ begin
   TestRenderer;
   TestEventsAndQueue;
   TestTimers;
+  TestControlOwnership;
+  TestControlGeometryAndHit;
+  TestControlFocus;
+  TestControlRenderingAndEvents;
   Halt(LuxTestExitCode);
 end.

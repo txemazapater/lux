@@ -22,7 +22,7 @@ Applications
 - `app` depends on `events`, `rendering` and `terminal`.
 - `terminal` depends on `core` and exposes terminal-oriented interfaces.
 - `platform` implements OS-specific services behind interfaces.
-- `controls` depends on `core`, `rendering` and `events` (Phase 5+).
+- `controls` depends on `core`, `rendering`, `events` and `app` (`TLuxControlApplication`).
 - Applications depend on public LUX units only.
 
 Circular dependencies are forbidden. Surfaces must not depend on terminal or platform units.
@@ -74,9 +74,22 @@ Event kinds in Phase 4:
 
 Focus, command routing and widget trees belong to Phase 5+.
 
+## Controls
+
+Portable controls live under `src/controls` and must not reference platform units. They draw only through `TLuxSurface` (via `TLuxPaintContext`) and consume only `TLuxEvent`.
+
+- Parents own children; cycles and duplicate inserts are rejected.
+- Coordinates are local; mouse hit-testing uses root coordinates then translates to local.
+- `TLuxFocusManager` holds one focused control; Tab / Shift+Tab walk tree order.
+- `TLuxControlApplication` hosts `TLuxRootControl`, routes input and renders the tree.
+- Phase 5 widgets: panel (optional single border), label, button.
+- Invalidation is full-frame. Mouse capture and layout managers are out of scope (see `docs/adr/0005-control-tree-ownership-focus.md`).
+
 ## Application loop
 
 `TLuxApplication` runs on a single thread: wait → drain timers into the queue → dispatch events one by one → `Update` → render only if invalidated or resized. Session open/restore remains outside `Run` (`try`/`finally` in the example).
+
+`TLuxControlApplication` extends the loop with control routing and root rendering without platform conditionals.
 
 ## Ownership and lifetime
 

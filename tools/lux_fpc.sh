@@ -58,6 +58,7 @@ lux_portable_paths() {
     "$root/src/rendering" \
     "$root/src/events" \
     "$root/src/app" \
+    "$root/src/controls" \
     "$root/tests"
 }
 
@@ -66,5 +67,6 @@ lux_unix_paths() {
   lux_portable_paths "$root"
   printf '%s\n' \
     "$root/src/platform/unix" \
-    "$root/examples/eventloop"
+    "$root/examples/eventloop" \
+    "$root/examples/controls_demo"
 }

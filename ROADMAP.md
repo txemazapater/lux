@@ -112,6 +112,8 @@ Exit criteria:
 
 ## Phase 5 - Control foundation
 
+Status: **complete**
+
 Goal: create a small composable control hierarchy.
 
 - Base control.
@@ -163,4 +165,4 @@ Git support, repository models and editor semantics belong to Lantern, not the L
 
 ## Current priority
 
-Phase 4 is closed on Windows (local) and Unix (Linux CI, including eventloop PTY smoke). Begin Phase 5 — control foundation.
+Phase 5 is closed (portable control tree, focus, panel/label/button, controls_demo). Begin Phase 6 — layout and common controls. Do not pull Lantern-specific widgets into the LUX core.

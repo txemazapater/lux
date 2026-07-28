@@ -36,15 +36,19 @@ case "$TARGET" in
   eventloop)
     build_one "$ROOT/examples/eventloop/eventloop_unix.pas" eventloop_unix "${UNIX[@]}"
     ;;
+  controls-demo)
+    build_one "$ROOT/examples/controls_demo/controls_demo_unix.pas" controls_demo_unix "${UNIX[@]}"
+    ;;
   all)
     build_one "$ROOT/examples/hello/hello_lux.pas" hello_lux "${PORTABLE[@]}"
     build_one "$ROOT/tests/lux_tests.pas" lux_tests "${PORTABLE[@]}"
     build_one "$ROOT/examples/unix_demo/unix_demo.pas" unix_demo "${UNIX[@]}"
     build_one "$ROOT/tests/unix/lux_unix_tests.pas" lux_unix_tests "${UNIX[@]}"
     build_one "$ROOT/examples/eventloop/eventloop_unix.pas" eventloop_unix "${UNIX[@]}"
+    build_one "$ROOT/examples/controls_demo/controls_demo_unix.pas" controls_demo_unix "${UNIX[@]}"
     ;;
   *)
-    echo "Usage: $0 [hello|tests|unix-demo|unix-tests|eventloop|all]" >&2
+    echo "Usage: $0 [hello|tests|unix-demo|unix-tests|eventloop|controls-demo|all]" >&2
     exit 2
     ;;
 esac

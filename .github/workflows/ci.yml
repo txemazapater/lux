@@ -43,6 +43,9 @@ jobs:
       - name: Build eventloop_unix
         run: ./tools/build.sh eventloop
 
+      - name: Build controls_demo_unix
+        run: ./tools/build.sh controls-demo
+
       - name: Smoke-run hello_lux
         run: ./bin/hello_lux
 
@@ -61,4 +64,14 @@ jobs:
           rc=$?
           set -e
           # 0 = quit via Esc; 124 = timeout (still proves the loop started under a PTY)
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 124 ]; then exit "$rc"; fi
+
+      - name: Smoke-run controls_demo_unix under pseudo-TTY
+        run: |
+          sudo apt-get install -y bsdutils || true
+          set +e
+          # Quit button is focusable second; send Tab then Enter after start.
+          timeout 15s script -q -c 'sh -c "(sleep 1; printf \"\\t\\r\") & exec ./bin/controls_demo_unix"' /dev/null
+          rc=$?
+          set -e
           if [ "$rc" -ne 0 ] && [ "$rc" -ne 124 ]; then exit "$rc"; fi

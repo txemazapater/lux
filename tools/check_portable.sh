@@ -10,7 +10,7 @@ while IFS= read -r -d '' file; do
     echo "PORTABLE VIOLATION: $file"
     FAILED=1
   fi
-done < <(find "$ROOT/src/core" "$ROOT/src/rendering" "$ROOT/src/terminal" "$ROOT/src/events" "$ROOT/src/app" -name '*.pas' -print0)
+done < <(find "$ROOT/src/core" "$ROOT/src/rendering" "$ROOT/src/terminal" "$ROOT/src/events" "$ROOT/src/app" "$ROOT/src/controls" -name '*.pas' -print0)
 
 if [[ "$FAILED" -ne 0 ]]; then
   echo "Portable units contain platform console dependencies." >&2
