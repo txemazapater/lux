@@ -7,27 +7,49 @@ Requires Free Pascal Compiler 3.2.2 or later.
 From the repository root:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\build.ps1
+powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Target all
 powershell -ExecutionPolicy Bypass -File tools\test.ps1
+powershell -ExecutionPolicy Bypass -File tools\test_windows.ps1
 ```
+
+Targets for `tools\build.ps1`:
+
+| Target | Output |
+|--------|--------|
+| `hello` | `bin\hello_lux.exe` |
+| `tests` | `bin\lux_tests.exe` |
+| `windows-demo` | `bin\windows_demo.exe` |
+| `windows-tests` | `bin\lux_windows_tests.exe` |
+| `all` | all of the above |
 
 Optional: point at a specific compiler:
 
 ```powershell
 $env:FPC = 'C:\lazarus\fpc\3.2.2\bin\x86_64-win64\fpc.exe'
-powershell -ExecutionPolicy Bypass -File tools\build.ps1
+powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Target hello
 ```
 
-Run the example:
+Run examples:
 
 ```powershell
 .\bin\hello_lux.exe
+.\bin\windows_demo.exe
 ```
 
-## Linux / macOS
+`windows_demo` requires an interactive console (not a redirected pipe). It enables VT/UTF-8, renders two frames, and restores the console on exit.
+
+Optional interactive Windows integration tests:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\test_windows_integration.ps1
+```
+
+## Linux / macOS (portable only)
+
+Windows platform units are not built on Unix hosts.
 
 ```bash
-chmod +x tools/build.sh tools/test.sh
+chmod +x tools/build.sh tools/test.sh tools/check_portable.sh
 ./tools/build.sh
 ./tools/test.sh
 ./bin/hello_lux
@@ -39,7 +61,7 @@ Optional:
 FPC=/usr/bin/fpc ./tools/build.sh
 ```
 
-## One-command test run
+## One-command portable test run
 
 Windows:
 
@@ -53,9 +75,11 @@ Unix:
 ./tools/test.sh
 ```
 
-Both scripts compile `tests/lux_tests.pas` and execute it. A non-zero exit code means failures.
+These scripts also run the portable isolation check (`tools/check_portable.*`) which fails if Win32/termios references appear under `src/core`, `src/rendering` or `src/terminal`.
 
 ## Manual FPC invocation
+
+Portable:
 
 ```bash
 fpc -Mobjfpc -Scghi -O1 -g -gl -vewnhibq \
@@ -65,6 +89,15 @@ fpc -Mobjfpc -Scghi -O1 -g -gl -vewnhibq \
 fpc -Mobjfpc -Scghi -O1 -g -gl -vewnhibq \
   -Fusrc/core -Fusrc/terminal -Fusrc/rendering -Futests -FUbin/units -FEbin -obin/lux_tests \
   tests/lux_tests.pas
+```
+
+Windows-only:
+
+```powershell
+fpc -Mobjfpc -Scghi -O1 -g -gl -vewnhibq `
+  -Fusrc/core -Fusrc/terminal -Fusrc/rendering -Fusrc/platform/windows -Futests `
+  -FUbin/units -FEbin -obin/windows_demo.exe `
+  examples/windows_demo/windows_demo.pas
 ```
 
 ## Compiler switches
@@ -83,4 +116,9 @@ Build products land under `bin/` and are ignored by Git.
 
 ## Continuous integration
 
-GitHub Actions workflow `.github/workflows/ci.yml` builds the example and runs the portable tests on Ubuntu and Windows.
+GitHub Actions workflow `.github/workflows/ci.yml`:
+
+- `portable-ubuntu`: isolation check, build, portable tests, hello smoke run
+- `windows`: FPC 3.2.2 install (no Lazarus recursive setup), isolation check, portable tests, Windows platform tests, `windows_demo` compile, hello smoke run
+
+Interactive console demos are not required to pass in CI (stdout is typically redirected).

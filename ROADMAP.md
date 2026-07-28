@@ -62,17 +62,30 @@ Real Windows/Unix console backends remain Phase 3.
 
 Goal: own and safely restore the host terminal.
 
-- Windows backend.
+### Phase 3A — Windows backend
+
+Status: **complete**
+
+- Windows console probe and capability snapshot.
+- `TLuxWindowsTerminalWriter` implementing `ILuxTerminalWriter`.
+- `TLuxWindowsTerminalSession` with VT + UTF-8 setup and idempotent restore.
+- `examples/windows_demo` against a real console.
+- Windows unit tests separated from portable tests; interactive tests optional.
+
+### Phase 3B — Unix backend
+
+Status: **pending**
+
 - Unix backend.
-- Terminal size detection.
+- Terminal size detection (shared / per platform as needed).
 - Raw input mode.
 - Alternate screen support.
-- Cursor visibility control.
-- Reliable cleanup after handled exceptions.
+- Cursor visibility control beyond the Windows 3A baseline.
+- Reliable cleanup after handled exceptions on Unix.
 
-Exit criteria:
+Exit criteria for full Phase 3:
 
-- The example enters and leaves terminal mode cleanly on Windows and Linux.
+- Examples enter and leave terminal mode cleanly on Windows and Linux.
 
 ## Phase 4 - Input and application loop
 
@@ -144,4 +157,4 @@ Git support, repository models and editor semantics belong to Lantern, not the L
 
 ## Current priority
 
-Cursor and other coding agents must work on Phase 3 (platform backends: Windows and Unix terminal ownership). Do not begin controls yet. Do not write directly to stdout from the renderer.
+Cursor and other coding agents must work on Phase 3B (Unix terminal backend). Do not begin controls yet. Do not write directly to stdout from the renderer. Keep Win32 confined to `src/platform/windows`.

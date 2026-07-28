@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the hello_lux example with Free Pascal.
+# Build the hello_lux example with Free Pascal (portable).
 set -euo pipefail
 # shellcheck source=lux_fpc.sh
 source "$(cd "$(dirname "$0")" && pwd)/lux_fpc.sh"

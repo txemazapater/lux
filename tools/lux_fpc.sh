@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared Free Pascal helpers for LUX shell scripts.
+# Shared Free Pascal helpers for LUX shell scripts (portable targets only).
 set -euo pipefail
 
 lux_root() {

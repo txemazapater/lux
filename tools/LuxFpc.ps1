@@ -13,6 +13,7 @@ function Resolve-LuxFpc {
     $candidates = @(
         'fpc',
         'C:\lazarus\fpc\3.2.2\bin\x86_64-win64\fpc.exe',
+        'C:\FPC\3.2.2\bin\x86_64-win64\fpc.exe',
         'C:\FPC\3.2.2\bin\i386-win32\fpc.exe'
     )
     foreach ($candidate in $candidates) {
@@ -29,7 +30,7 @@ function Resolve-LuxFpc {
     throw 'Free Pascal compiler (fpc) not found. Set $env:FPC to the fpc.exe path.'
 }
 
-function Get-LuxUnitPaths {
+function Get-LuxPortableUnitPaths {
     param([string]$Root)
     @(
         (Join-Path $Root 'src\core'),
@@ -39,13 +40,20 @@ function Get-LuxUnitPaths {
     )
 }
 
+function Get-LuxWindowsUnitPaths {
+    param([string]$Root)
+    (Get-LuxPortableUnitPaths -Root $Root) + @(
+        (Join-Path $Root 'src\platform\windows')
+    )
+}
+
 function Invoke-LuxFpc {
     param(
         [Parameter(Mandatory = $true)][string]$Fpc,
         [Parameter(Mandatory = $true)][string]$Root,
         [Parameter(Mandatory = $true)][string]$Source,
         [Parameter(Mandatory = $true)][string]$OutputExe,
-        [string[]]$ExtraUnitPaths = @()
+        [string[]]$UnitPaths
     )
 
     $Out = Join-Path $Root 'bin'
@@ -53,7 +61,7 @@ function Invoke-LuxFpc {
     New-Item -ItemType Directory -Force -Path $Out, $UnitOut | Out-Null
 
     $unitArgs = @()
-    foreach ($path in (Get-LuxUnitPaths -Root $Root) + $ExtraUnitPaths) {
+    foreach ($path in $UnitPaths) {
         $unitArgs += "-Fu$path"
     }
 

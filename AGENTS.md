@@ -118,4 +118,4 @@ A task is done only when:
 
 ## Current instruction to coding agents
 
-Phases 0, 1 and 2A are complete. Continue with Phase 3 from `ROADMAP.md`: Windows and Unix platform backends that implement terminal setup/restore and `ILuxTerminalWriter` against a real console. Do not begin controls yet. Keep ANSI generation and the differential renderer portable.
+Phases 0, 1, 2A and 3A are complete. Continue with Phase 3B from `ROADMAP.md`: Unix platform backend that configures/restores the terminal and implements `ILuxTerminalWriter`. Do not begin controls yet. Keep ANSI generation and the differential renderer portable. Do not add Win32 code outside `src/platform/windows`.

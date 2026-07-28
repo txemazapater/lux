@@ -6,56 +6,90 @@ on:
   pull_request:
 
 jobs:
-  build-and-test:
-    name: ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-
+  portable-ubuntu:
+    name: portable-ubuntu
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Free Pascal (Linux)
-        if: runner.os == 'Linux'
+      - name: Install Free Pascal
         run: |
           sudo apt-get update
           sudo apt-get install -y fpc
           fpc -iV
 
-      - name: Install Free Pascal (Windows)
-        if: runner.os == 'Windows'
-        uses: gcarreno/setup-lazarus@v3
-        with:
-          lazarus-version: recursive
-          with-cache: true
-
-      - name: Build example
-        shell: bash
+      - name: Portable isolation check
         run: |
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            powershell -ExecutionPolicy Bypass -File tools/build.ps1
-          else
-            chmod +x tools/build.sh tools/test.sh
-            ./tools/build.sh
-          fi
+          chmod +x tools/check_portable.sh tools/build.sh tools/test.sh
+          ./tools/check_portable.sh
 
-      - name: Run tests
-        shell: bash
-        run: |
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            powershell -ExecutionPolicy Bypass -File tools/test.ps1
-          else
-            ./tools/test.sh
-          fi
+      - name: Build hello_lux
+        run: ./tools/build.sh
+
+      - name: Run portable tests
+        run: ./tools/test.sh
 
       - name: Smoke-run hello_lux
-        shell: bash
+        run: ./bin/hello_lux
+
+  windows:
+    name: windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Free Pascal 3.2.2
+        shell: powershell
         run: |
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            ./bin/hello_lux.exe
-          else
-            ./bin/hello_lux
-          fi
+          $ErrorActionPreference = 'Stop'
+          $fpc = $null
+          try {
+            choco install fpc --version=3.2.2 -y --no-progress
+          } catch {
+            Write-Host "Chocolatey fpc install failed: $_"
+          }
+          $fpc = Get-ChildItem -Path 'C:\FPC','C:\ProgramData\chocolatey\lib' -Recurse -Filter fpc.exe -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match 'x86_64|win64' } |
+            Select-Object -First 1 -ExpandProperty FullName
+          if (-not $fpc) {
+            $fpc = Get-ChildItem -Path 'C:\FPC','C:\ProgramData\chocolatey\lib' -Recurse -Filter fpc.exe -ErrorAction SilentlyContinue |
+              Select-Object -First 1 -ExpandProperty FullName
+          }
+          if (-not $fpc) {
+            $installer = Join-Path $env:RUNNER_TEMP 'fpc-3.2.2.win64.exe'
+            $url = 'https://sourceforge.net/projects/freepascal/files/Win64/3.2.2/fpc-3.2.2.win64.exe/download'
+            Invoke-WebRequest -Uri $url -OutFile $installer -UserAgent 'Wget'
+            Start-Process -FilePath $installer -ArgumentList '/VERYSILENT','/NORESTART','/DIR=C:\FPC\3.2.2' -Wait
+            $fpc = 'C:\FPC\3.2.2\bin\x86_64-win64\fpc.exe'
+          }
+          if (-not (Test-Path $fpc)) { throw "fpc.exe not found ($fpc)" }
+          $bin = Split-Path $fpc
+          Add-Content -Path $env:GITHUB_PATH -Value $bin
+          Add-Content -Path $env:GITHUB_ENV -Value "FPC=$fpc"
+          & $fpc -iV
+
+      - name: Portable isolation check
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File tools/check_portable.ps1
+
+      - name: Build hello_lux
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File tools/build.ps1 -Target hello
+
+      - name: Run portable tests
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File tools/test.ps1
+
+      - name: Build and run Windows platform tests
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File tools/test_windows.ps1
+
+      - name: Build windows_demo
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File tools/build.ps1 -Target windows-demo
+
+      - name: Smoke-run hello_lux
+        shell: powershell
+        run: .\bin\hello_lux.exe

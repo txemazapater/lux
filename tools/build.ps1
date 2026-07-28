@@ -1,5 +1,7 @@
-# Build the hello_lux example with Free Pascal.
+# Build LUX targets with Free Pascal (Windows host).
 param(
+    [ValidateSet('hello', 'tests', 'windows-demo', 'windows-tests', 'all')]
+    [string]$Target = 'hello',
     [string]$Fpc = $env:FPC
 )
 
@@ -8,12 +10,32 @@ $ErrorActionPreference = 'Stop'
 
 $Root = Get-LuxRoot
 $ResolvedFpc = Resolve-LuxFpc -Fpc $Fpc
-$exe = Join-Path $Root 'bin\hello_lux.exe'
+$portable = Get-LuxPortableUnitPaths -Root $Root
+$windows = Get-LuxWindowsUnitPaths -Root $Root
 
-Invoke-LuxFpc `
-  -Fpc $ResolvedFpc `
-  -Root $Root `
-  -Source (Join-Path $Root 'examples\hello\hello_lux.pas') `
-  -OutputExe $exe
+function Build-One([string]$Source, [string]$ExeName, [string[]]$Paths) {
+    $exe = Join-Path $Root "bin\$ExeName"
+    Invoke-LuxFpc -Fpc $ResolvedFpc -Root $Root -Source $Source -OutputExe $exe -UnitPaths $Paths
+    Write-Host "Built: $exe"
+}
 
-Write-Host "Built: $exe"
+switch ($Target) {
+    'hello' {
+        Build-One (Join-Path $Root 'examples\hello\hello_lux.pas') 'hello_lux.exe' $portable
+    }
+    'tests' {
+        Build-One (Join-Path $Root 'tests\lux_tests.pas') 'lux_tests.exe' $portable
+    }
+    'windows-demo' {
+        Build-One (Join-Path $Root 'examples\windows_demo\windows_demo.pas') 'windows_demo.exe' $windows
+    }
+    'windows-tests' {
+        Build-One (Join-Path $Root 'tests\windows\lux_windows_tests.pas') 'lux_windows_tests.exe' $windows
+    }
+    'all' {
+        Build-One (Join-Path $Root 'examples\hello\hello_lux.pas') 'hello_lux.exe' $portable
+        Build-One (Join-Path $Root 'tests\lux_tests.pas') 'lux_tests.exe' $portable
+        Build-One (Join-Path $Root 'examples\windows_demo\windows_demo.pas') 'windows_demo.exe' $windows
+        Build-One (Join-Path $Root 'tests\windows\lux_windows_tests.pas') 'lux_windows_tests.exe' $windows
+    }
+}
