@@ -55,9 +55,13 @@ type
   TResizeProbeApp = class(TLuxApplication)
   public
     ResizeCalls: Integer;
+    KeyHandled: Integer;
+    TimerHandled: Integer;
     LastResizeW: Integer;
     LastResizeH: Integer;
     procedure OnResize(AWidth, AHeight: Integer); override;
+    function HandleEvent(const Event: TLuxEvent): Boolean; override;
+    function WaitTimeout: Integer;
   end;
 
 function TFakeClock.NowMs: TLuxTimeMs;
@@ -92,6 +96,28 @@ begin
   Inc(ResizeCalls);
   LastResizeW := AWidth;
   LastResizeH := AHeight;
+end;
+
+function TResizeProbeApp.HandleEvent(const Event: TLuxEvent): Boolean;
+begin
+  Result := False;
+  case Event.Kind of
+    ekKey:
+      begin
+        Inc(KeyHandled);
+        Result := True;
+      end;
+    ekTimer:
+      begin
+        Inc(TimerHandled);
+        Result := True;
+      end;
+  end;
+end;
+
+function TResizeProbeApp.WaitTimeout: Integer;
+begin
+  Result := CombinedWaitTimeoutMs;
 end;
 
 procedure TestVersion;
@@ -450,50 +476,180 @@ begin
   end;
 end;
 
-procedure TestResizeCoalesce;
+procedure TestDeferredResize;
 var
   WriterObj: TLuxMemoryTerminalWriter;
   Writer: ILuxTerminalWriter;
   Source: ILuxEventSource;
+  Clock: TFakeClock;
+  ClockIface: ILuxClock;
   App: TResizeProbeApp;
   FlushBefore: Integer;
+  I: Integer;
+  TimeoutMs: Integer;
 begin
-  LuxSection('Lux.Application resize coalesce');
+  LuxSection('Lux.Application deferred resize');
   WriterObj := TLuxMemoryTerminalWriter.Create;
   Writer := WriterObj;
   Source := TFakeEventSource.Create;
-  App := TResizeProbeApp.Create(Writer, Source, 10, 5);
+  Clock := TFakeClock.Create;
+  Clock.NowValue := 1000;
+  ClockIface := Clock;
+  App := TResizeProbeApp.Create(Writer, Source, 10, 5, ClockIface);
   try
     App.ProcessPending;
     LuxCheck(App.Renderer.LastWasFullRepaint, 'initial paint full');
     FlushBefore := WriterObj.FlushCount;
 
-    App.PostEvent(LuxEventResize(12, 6));
-    App.PostEvent(LuxEventResize(14, 7));
-    App.PostEvent(LuxEventResize(16, 8));
+    { Observe does not apply immediately. }
     App.PostEvent(LuxEventResize(20, 10));
     App.ProcessPending;
+    LuxCheck(App.ResizePending, 'resize pending after observe');
+    LuxCheckEqualInt(0, App.ResizeCalls, 'no commit before settle');
+    LuxCheckEqualInt(10, App.Width, 'committed width unchanged');
+    LuxCheckEqualInt(5, App.Height, 'committed height unchanged');
+    LuxCheckEqualInt(10, App.Surface.Width, 'surface width unchanged');
+    LuxCheckEqualInt(5, App.Surface.Height, 'surface height unchanged');
+    LuxCheckEqualInt(FlushBefore, WriterObj.FlushCount, 'no paint while pending');
 
-    LuxCheckEqualInt(1, App.ResizeCalls, 'coalesce to one OnResize');
-    LuxCheckEqualInt(20, App.LastResizeW, 'final width applied');
-    LuxCheckEqualInt(10, App.LastResizeH, 'final height applied');
-    LuxCheckEqualInt(20, App.Width, 'app width final');
-    LuxCheckEqualInt(10, App.Height, 'app height final');
-    LuxCheckEqualInt(FlushBefore + 1, WriterObj.FlushCount,
-      'one paint after coalesced resizes');
-    LuxCheck(App.Renderer.LastWasFullRepaint, 'resize paint was full');
+    { Before 75 ms: still no commit. }
+    Clock.NowValue := 1000 + LuxResizeSettleDelayMs - 1;
+    App.ProcessPending;
+    LuxCheck(App.ResizePending, 'still pending before deadline');
+    LuxCheckEqualInt(0, App.ResizeCalls, 'no commit before deadline');
+    LuxCheckEqualInt(FlushBefore, WriterObj.FlushCount, 'no paint before deadline');
+
+    { At deadline: single commit + paint. }
+    Clock.NowValue := 1000 + LuxResizeSettleDelayMs;
+    App.ProcessPending;
+    LuxCheck(not App.ResizePending, 'pending cleared after commit');
+    LuxCheckEqualInt(1, App.ResizeCalls, 'one commit at deadline');
+    LuxCheckEqualInt(20, App.LastResizeW, 'committed width');
+    LuxCheckEqualInt(10, App.LastResizeH, 'committed height');
+    LuxCheckEqualInt(20, App.Surface.Width, 'surface resized on commit');
+    LuxCheckEqualInt(FlushBefore + 1, WriterObj.FlushCount, 'one paint on commit');
+    LuxCheck(App.Renderer.LastWasFullRepaint, 'commit paint was full');
     LuxCheck(not WriterObj.ContainsRaw(LuxAnsiClearScreen),
-      'coalesced resize paint no clear');
+      'commit paint no clear screen');
 
+    { Differential after commit. }
     WriterObj.Clear;
     App.Surface.PutText(0, 0, 'A');
     App.Invalidate;
     App.ProcessPending;
-    LuxCheck(not App.Renderer.LastWasFullRepaint,
-      'after resize returns to differential');
+    LuxCheck(not App.Renderer.LastWasFullRepaint, 'returns to differential');
     LuxCheck(WriterObj.ContainsRaw(LuxUTF8Bytes('A')), 'diff paints A');
+
+    { Second resize replaces first and restarts deadline. }
+    FlushBefore := WriterObj.FlushCount;
+    Clock.NowValue := 2000;
+    App.PostEvent(LuxEventResize(30, 12));
+    App.ProcessPending;
+    LuxCheck(App.ResizePending, 'second observe pending');
+    Clock.NowValue := 2050;
+    App.PostEvent(LuxEventResize(40, 15));
+    App.ProcessPending;
+    LuxCheckEqualInt(1, App.ResizeCalls, 'still one commit total so far');
+    Clock.NowValue := 2050 + LuxResizeSettleDelayMs - 1;
+    App.ProcessPending;
+    LuxCheckEqualInt(1, App.ResizeCalls, 'restarted deadline not reached');
+    Clock.NowValue := 2050 + LuxResizeSettleDelayMs;
+    App.ProcessPending;
+    LuxCheckEqualInt(2, App.ResizeCalls, 'commit after restarted deadline');
+    LuxCheckEqualInt(40, App.LastResizeW, 'replaced size committed');
+    LuxCheckEqualInt(15, App.LastResizeH, 'replaced height committed');
+    LuxCheckEqualInt(FlushBefore + 1, WriterObj.FlushCount,
+      'one paint for replaced resize');
+
+    { Ten consecutive resizes → one commit. }
+    FlushBefore := WriterObj.FlushCount;
+    Clock.NowValue := 3000;
+    for I := 1 to 10 do
+      App.PostEvent(LuxEventResize(50 + I, 20));
+    App.ProcessPending;
+    LuxCheck(App.ResizePending, 'burst leaves pending');
+    LuxCheckEqualInt(2, App.ResizeCalls, 'burst does not commit early');
+    LuxCheckEqualInt(FlushBefore, WriterObj.FlushCount, 'burst no paint');
+    Clock.NowValue := 3000 + LuxResizeSettleDelayMs;
+    App.ProcessPending;
+    LuxCheckEqualInt(3, App.ResizeCalls, 'burst one commit');
+    LuxCheckEqualInt(60, App.LastResizeW, 'burst last width');
+    LuxCheckEqualInt(20, App.LastResizeH, 'burst last height');
+    LuxCheckEqualInt(FlushBefore + 1, WriterObj.FlushCount, 'burst one paint');
+
+    { Repeated pending size does not restart deadline. }
+    Clock.NowValue := 4000;
+    App.PostEvent(LuxEventResize(70, 25));
+    App.ProcessPending;
+    Clock.NowValue := 4040;
+    App.PostEvent(LuxEventResize(70, 25));
+    App.ProcessPending;
+    Clock.NowValue := 4000 + LuxResizeSettleDelayMs;
+    App.ProcessPending;
+    LuxCheckEqualInt(4, App.ResizeCalls, 'repeat pending still commits once');
+    LuxCheckEqualInt(70, App.Width, 'repeat pending width');
+
+    { Same as committed abandons pending without commit work. }
+    Clock.NowValue := 5000;
+    App.PostEvent(LuxEventResize(80, 30));
+    App.ProcessPending;
+    LuxCheck(App.ResizePending, 'pending before abandon');
+    App.PostEvent(LuxEventResize(70, 25));
+    App.ProcessPending;
+    LuxCheck(not App.ResizePending, 'same as committed clears pending');
+    LuxCheckEqualInt(4, App.ResizeCalls, 'abandon does not commit');
+    LuxCheckEqualInt(70, App.Width, 'width stays committed');
+
+    { Timeout integrates resize deadline. }
+    Clock.NowValue := 6000;
+    App.PostEvent(LuxEventResize(90, 35));
+    App.ProcessPending;
+    TimeoutMs := App.WaitTimeout;
+    LuxCheckEqualInt(Integer(LuxResizeSettleDelayMs), TimeoutMs,
+      'wait timeout is settle delay');
+    I := Integer(App.ScheduleOnce(200));
+    TimeoutMs := App.WaitTimeout;
+    LuxCheckEqualInt(Integer(LuxResizeSettleDelayMs), TimeoutMs,
+      'resize deadline nearer than timer');
+    App.CancelTimer(TLuxTimerId(I));
+    Clock.NowValue := 6030;
+    I := Integer(App.ScheduleOnce(10));
+    TimeoutMs := App.WaitTimeout;
+    LuxCheckEqualInt(10, TimeoutMs, 'timer nearer than resize deadline');
+    App.CancelTimer(TLuxTimerId(I));
+
+    { Clear pending via commit for remaining tests. }
+    Clock.NowValue := 6000 + LuxResizeSettleDelayMs;
+    App.ProcessPending;
+
+    { Keyboard still processed; no paint while pending. }
+    FlushBefore := WriterObj.FlushCount;
+    Clock.NowValue := 7000;
+    App.PostEvent(LuxEventResize(100, 40));
+    App.ProcessPending;
+    App.PostEvent(LuxEventKey(lkChar, 'x', [], kaPress));
+    App.ProcessPending;
+    LuxCheckEqualInt(1, App.KeyHandled, 'key handled while pending');
+    LuxCheck(App.ResizePending, 'still pending after key');
+    LuxCheckEqualInt(FlushBefore, WriterObj.FlushCount, 'key does not paint');
+
+    { Timers still fire while pending; paint deferred. }
+    App.ScheduleOnce(5);
+    Clock.NowValue := 7005;
+    App.ProcessPending;
+    LuxCheckEqualInt(1, App.TimerHandled, 'timer handled while pending');
+    LuxCheck(App.ResizePending, 'pending survives timer');
+    LuxCheckEqualInt(FlushBefore, WriterObj.FlushCount, 'timer does not paint');
+
+    { Quit abandons pending without waiting for deadline. }
+    App.PostEvent(LuxEventQuit);
+    App.ProcessPending;
+    LuxCheck(App.QuitRequested, 'quit accepted while pending');
+    LuxCheckEqualInt(5, App.ResizeCalls, 'quit does not force commit');
+    LuxCheckEqualInt(90, App.Width, 'width unchanged after quit abandon');
   finally
     App.Free;
+    ClockIface := nil;
     Source := nil;
     Writer := nil;
   end;
@@ -850,7 +1006,7 @@ begin
   TestAnsiHelpers;
   TestMemoryWriter;
   TestRenderer;
-  TestResizeCoalesce;
+  TestDeferredResize;
   TestEventsAndQueue;
   TestTimers;
   TestControlOwnership;

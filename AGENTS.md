@@ -118,4 +118,4 @@ A task is done only when:
 
 ## Current instruction to coding agents
 
-Phases 0–5, 5.1 and 5.2 (resize/repaint stability) are complete. Do not begin Phase 6 (layouts / new controls) until Phase 5.2 remains verified on Windows and Linux CI. Keep ANSI generation and the differential renderer portable. Keep Win32 in `src/platform/windows` and termios in `src/platform/unix`. Keep controls in `src/controls` free of platform units. Full repaint means rewrite all cells, not erase the terminal (`docs/adr/0006-full-repaint-without-clear.md`).
+Phases 0–5, 5.1 and 5.2 are complete. Phase 5.2.1 (deferred resize commit) is experimental and pending Windows manual verification — do not begin Phase 6 until that is accepted or reverted. Keep ANSI generation and the differential renderer portable. Keep Win32 in `src/platform/windows` and termios in `src/platform/unix`. Keep controls in `src/controls` free of platform units. Full repaint means rewrite all cells, not erase the terminal (`docs/adr/0006-full-repaint-without-clear.md`). Observed vs committed resize sizes may differ while pending (`docs/adr/0007-deferred-resize-commit.md`).

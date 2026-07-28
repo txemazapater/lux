@@ -3,6 +3,9 @@ unit Lux.Application;
 
 {$mode objfpc}{$H+}
 
+{ Define LUX_RESIZE_TRACE to log observe/commit resize decisions to stderr. }
+{.$DEFINE LUX_RESIZE_TRACE}
+
 interface
 
 uses
@@ -15,22 +18,35 @@ uses
   Lux.Renderer,
   Lux.Terminal.Writer;
 
+const
+  { Settle delay before committing an observed terminal size (Phase 5.2.1).
+    Change this constant for manual experiments; not a public setting. }
+  LuxResizeSettleDelayMs: TLuxTimeMs = 75;
+
 type
   { Minimal interactive host.
 
     Threading: all callbacks run on the thread that calls Run. Events are
     processed one at a time from the queue. Timers are collected before waiting
     and after each wait. Repaint occurs once per loop iteration after event
-    dispatch, and only when Invalidate was requested or a resize forced it.
-    Back-to-back resize events in the queue are coalesced to the latest size
-    before painting. Pending input is drained after each wait so coalescing
-    can see multiple WINDOW_BUFFER_SIZE_EVENT results in one iteration.
+    dispatch, and only when Invalidate was requested or a committed resize
+    forced it.
+
+    Resize uses two reduction levels:
+      1. Queue coalescing of consecutive ekResize to the latest size.
+      2. Deferred commit after LuxResizeSettleDelayMs without a newer observe.
+
+    Observed terminal size and committed application size may differ while a
+    resize is pending. Intermediate sizes do not resize the surface, invalidate
+    the renderer, or paint. While pending, logical events still run but paints
+    are deferred until commit (or quit abandons the pending resize).
 
     Does not know about widgets, focus, layout or mouse capture. }
   TLuxApplication = class
   private
     FWriter: ILuxTerminalWriter;
     FSource: ILuxEventSource;
+    FClock: ILuxClock;
     FQueue: TLuxEventQueue;
     FTimers: TLuxTimerScheduler;
     FSurface: TLuxSurface;
@@ -39,12 +55,19 @@ type
     FNeedsPaint: Boolean;
     FWidth: Integer;
     FHeight: Integer;
-    function CombinedWaitTimeoutMs: Integer;
+    FResizePending: Boolean;
+    FPendingResize: TLuxResizeEvent;
+    FResizeDeadlineMs: TLuxTimeMs;
+    procedure ObserveResize(const AResize: TLuxResizeEvent);
+    procedure CommitPendingResize;
+    procedure ClearPendingResize;
     procedure HandleResize(const AResize: TLuxResizeEvent);
     procedure DispatchEvent(const Event: TLuxEvent);
     procedure DrainAvailableInput;
     procedure DispatchQueuedEvents;
+    procedure PaintIfNeeded;
   protected
+    function CombinedWaitTimeoutMs: Integer;
     { Return True if the event was fully handled. }
     function HandleEvent(const Event: TLuxEvent): Boolean; virtual;
     procedure Update; virtual;
@@ -56,7 +79,8 @@ type
     destructor Destroy; override;
 
     procedure Run;
-    { Dispatch queued events, Update, and paint if needed. Does not wait. }
+    { Dispatch queued events, commit due resize, Update, and paint if needed.
+      Does not wait. }
     procedure ProcessPending;
     procedure RequestQuit;
     procedure Invalidate;
@@ -73,6 +97,8 @@ type
     property Width: Integer read FWidth;
     property Height: Integer read FHeight;
     property QuitRequested: Boolean read FQuit;
+    { True while an observed size awaits settle before commit. }
+    property ResizePending: Boolean read FResizePending;
   end;
 
 implementation
@@ -92,14 +118,22 @@ begin
   end;
   FWriter := AWriter;
   FSource := ASource;
+  if AClock = nil then
+    FClock := TLuxSystemClock.Create
+  else
+    FClock := AClock;
   FQueue := TLuxEventQueue.Create;
-  FTimers := TLuxTimerScheduler.Create(AClock);
+  FTimers := TLuxTimerScheduler.Create(FClock);
   FSurface := TLuxSurface.Create(AWidth, AHeight);
   FRenderer := TLuxRenderer.Create(AWriter);
   FWidth := AWidth;
   FHeight := AHeight;
   FQuit := False;
   FNeedsPaint := True;
+  FResizePending := False;
+  FPendingResize.Width := 0;
+  FPendingResize.Height := 0;
+  FResizeDeadlineMs := 0;
 end;
 
 destructor TLuxApplication.Destroy;
@@ -108,6 +142,7 @@ begin
   FreeAndNil(FSurface);
   FreeAndNil(FTimers);
   FreeAndNil(FQueue);
+  FClock := nil;
   FSource := nil;
   FWriter := nil;
   inherited Destroy;
@@ -145,14 +180,92 @@ end;
 
 function TLuxApplication.CombinedWaitTimeoutMs: Integer;
 var
-  Next: TLuxTimeMs;
+  Next, ResizeWait, Best: TLuxTimeMs;
+  NowT: TLuxTimeMs;
 begin
+  Best := -1;
   Next := FTimers.NextDelayMs;
-  if Next < 0 then
+  if Next >= 0 then
+    Best := Next;
+
+  if FResizePending then
+  begin
+    NowT := FClock.NowMs;
+    ResizeWait := FResizeDeadlineMs - NowT;
+    if ResizeWait < 0 then
+      ResizeWait := 0;
+    if (Best < 0) or (ResizeWait < Best) then
+      Best := ResizeWait;
+  end;
+
+  if Best < 0 then
     Exit(-1);
-  if Next > High(Integer) then
+  if Best > High(Integer) then
     Exit(High(Integer));
-  Result := Integer(Next);
+  Result := Integer(Best);
+end;
+
+procedure TLuxApplication.ClearPendingResize;
+begin
+  FResizePending := False;
+  FPendingResize.Width := 0;
+  FPendingResize.Height := 0;
+  FResizeDeadlineMs := 0;
+end;
+
+procedure TLuxApplication.ObserveResize(const AResize: TLuxResizeEvent);
+var
+  W, H: Integer;
+begin
+  W := AResize.Width;
+  H := AResize.Height;
+  if W < 1 then
+    W := 1;
+  if H < 1 then
+    H := 1;
+
+  { Same as already committed: drop pending without commit work. }
+  if (W = FWidth) and (H = FHeight) then
+  begin
+    if FResizePending then
+      ClearPendingResize;
+    Exit;
+  end;
+
+  { Same as current pending: do not restart the deadline. }
+  if FResizePending and (W = FPendingResize.Width) and
+     (H = FPendingResize.Height) then
+    Exit;
+
+  FPendingResize.Width := W;
+  FPendingResize.Height := H;
+  FResizePending := True;
+  FResizeDeadlineMs := FClock.NowMs + LuxResizeSettleDelayMs;
+
+  {$IFDEF LUX_RESIZE_TRACE}
+  WriteLn(StdErr, Format('LUX observe resize %dx%d deadline=%d',
+    [W, H, FResizeDeadlineMs]));
+  {$ENDIF}
+end;
+
+procedure TLuxApplication.CommitPendingResize;
+var
+  Pending: TLuxResizeEvent;
+begin
+  if not FResizePending then
+    Exit;
+  if FClock.NowMs < FResizeDeadlineMs then
+    Exit;
+
+  Pending := FPendingResize;
+
+  {$IFDEF LUX_RESIZE_TRACE}
+  WriteLn(StdErr, Format('LUX commit resize %dx%d',
+    [Pending.Width, Pending.Height]));
+  {$ENDIF}
+
+  ClearPendingResize;
+  HandleResize(Pending);
 end;
 
 procedure TLuxApplication.HandleResize(const AResize: TLuxResizeEvent);
@@ -206,7 +319,7 @@ begin
       end;
     ekResize:
       begin
-        HandleResize(Event.Resize);
+        ObserveResize(Event.Resize);
         HandleEvent(Event);
       end;
     ekTimer:
@@ -234,8 +347,7 @@ var
 begin
   while FQueue.TryPop(Ev) do
   begin
-    { Coalesce back-to-back resizes so only the latest size is applied
-      before the next paint. Single-threaded; no timers. }
+    { Level 1: coalesce back-to-back resizes to the latest queued size. }
     if Ev.Kind = ekResize then
       while FQueue.Peek(Next) and (Next.Kind = ekResize) do
         FQueue.TryPop(Ev);
@@ -246,6 +358,16 @@ begin
   end;
 end;
 
+procedure TLuxApplication.PaintIfNeeded;
+begin
+  if FQuit or (not FNeedsPaint) or FResizePending then
+    Exit;
+
+  RenderContent(FSurface);
+  FRenderer.Render(FSurface);
+  FNeedsPaint := False;
+end;
+
 procedure TLuxApplication.ProcessPending;
 begin
   FTimers.CollectDueToQueue(FQueue);
@@ -253,14 +375,12 @@ begin
   if FQuit then
     Exit;
 
-  Update;
+  CommitPendingResize;
+  if FQuit then
+    Exit;
 
-  if FNeedsPaint and (not FQuit) then
-  begin
-    RenderContent(FSurface);
-    FRenderer.Render(FSurface);
-    FNeedsPaint := False;
-  end;
+  Update;
+  PaintIfNeeded;
 end;
 
 procedure TLuxApplication.Run;
@@ -288,7 +408,8 @@ begin
       ProcessPending;
     end;
   finally
-    { Session restore is the caller's responsibility (try/finally around Run). }
+    { Session restore is the caller's responsibility (try/finally around Run).
+      Pending resize is abandoned on quit; no wait for the settle deadline. }
   end;
 end;
 

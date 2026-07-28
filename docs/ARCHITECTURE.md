@@ -90,7 +90,7 @@ Portable controls live under `src/controls` and must not reference platform unit
 
 ## Application loop
 
-`TLuxApplication` runs on a single thread: wait → drain pending input → collect timers → dispatch events (consecutive resizes coalesced to the latest size) → `Update` → render at most once per iteration if invalidated or resized. Session open/restore remains outside `Run` (`try`/`finally` in the example).
+`TLuxApplication` runs on a single thread: wait → drain pending input → collect timers → dispatch events (consecutive resizes coalesced) → optionally commit a settled resize → `Update` → render at most once per iteration if invalidated and no resize is pending. Observed terminal size and committed application size may differ during an interactive drag (`docs/adr/0007-deferred-resize-commit.md`). Session open/restore remains outside `Run` (`try`/`finally` in the example).
 
 `TLuxControlApplication` extends the loop with control routing and root rendering without platform conditionals.
 

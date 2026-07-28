@@ -137,9 +137,17 @@ Status: **complete**
 - Application coalesces consecutive resize events (single-threaded, no timers).
 - See `docs/phase-5.2-resize-repaint.md` and `docs/adr/0006-full-repaint-without-clear.md`.
 
+### Phase 5.2.1 — Deferred resize commit
+
+Status: **experimental / pending manual verification**
+
+- Observe intermediate sizes; commit after `LuxResizeSettleDelayMs` (75) of stability.
+- No surface/renderer/paint updates while pending; paints deferred; quit abandons pending.
+- Reversible without undoing 5.2 renderer fixes (`docs/adr/0007-deferred-resize-commit.md`).
+
 ## Phase 6 - Layout and common controls
 
-Status: **not started** (blocked until Phase 5.2 stays verified)
+Status: **not started** (blocked until resize strategy is accepted after manual Windows verification)
 
 - Dock layout.
 - Stack layout.
@@ -176,4 +184,4 @@ Git support, repository models and editor semantics belong to Lantern, not the L
 
 ## Current priority
 
-Phases 5, 5.1 and 5.2 are closed. Begin Phase 6 — layout and common controls — only after resize/repaint remains stable on Windows and Linux CI. Do not pull Lantern-specific widgets into the LUX core.
+Phases 5, 5.1 and 5.2 are closed. Phase 5.2.1 (deferred resize) is experimental until Windows manual verification. Do not begin Phase 6 until that decision. Do not pull Lantern-specific widgets into the LUX core.
