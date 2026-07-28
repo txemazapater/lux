@@ -96,9 +96,17 @@ begin
   LuxCheck(Fd >= 0, 'temp file created');
   Writer := TLuxUnixTerminalWriter.Create(Fd, True);
   try
-    Expected := LuxUTF8Bytes('A' + UnicodeString(WideChar($4E00)) + 'Z');
-    Writer.WriteText('A' + UnicodeString(WideChar($4E00)) + 'Z');
-    Writer.Flush;
+  Expected := '';
+  SetLength(Expected, 5);
+  Expected[1] := #$41; { A }
+  Expected[2] := #$E4; { UTF-8 for U+4E00 }
+  Expected[3] := #$B8;
+  Expected[4] := #$80;
+  Expected[5] := #$5A; { Z }
+  SetCodePage(Expected, CP_NONE, False);
+
+  Writer.WriteText('A' + UnicodeString(WideChar($4E00)) + 'Z');
+  Writer.Flush;
   finally
     Writer.Free;
   end;
@@ -117,7 +125,10 @@ begin
     FpClose(ReadFd);
   end;
   SysUtils.DeleteFile(Path);
+  LuxCheckEqualInt(System.Length(Expected), System.Length(Data), 'utf8 byte length');
   LuxCheck(Data = Expected, 'file contains UTF-8 bytes');
+  LuxCheck(LuxUTF8Bytes('A' + UnicodeString(WideChar($4E00)) + 'Z') = Expected,
+    'LuxUTF8Bytes matches canonical CJK sequence');
 end;
 
 procedure TestRedirectedOpenFails;

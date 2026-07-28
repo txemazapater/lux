@@ -38,6 +38,7 @@ begin
   SetLength(Result, N);
   if N > 0 then
     Move(U[1], Result[1], N);
+  SetCodePage(Result, CP_NONE, False);
 end;
 
 end.
