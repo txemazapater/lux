@@ -84,6 +84,7 @@ Portable controls live under `src/controls` and must not reference platform unit
 - `TLuxControlApplication` hosts `TLuxRootControl`, routes input and renders the tree.
 - Phase 5 widgets: panel (optional single border), label, button.
 - Invalidation is full-frame. Mouse capture and layout managers are out of scope (see `docs/adr/0005-control-tree-ownership-focus.md`).
+- Platform input backends are validated with synthetic translation tests and a small interactive inspector on the real host (`examples/input_inspector/`). Windows stdin uses Win32 `INPUT_RECORD` mode without `ENABLE_VIRTUAL_TERMINAL_INPUT` (see `docs/adr/0002-windows-terminal-session.md`).
 
 ## Application loop
 

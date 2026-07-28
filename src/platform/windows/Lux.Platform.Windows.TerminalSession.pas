@@ -125,14 +125,16 @@ begin
   if not FHaveInputMode then
     Exit;
   Mode := FOriginalInputMode;
+  { ReadConsoleInputW path: never enable ENABLE_VIRTUAL_TERMINAL_INPUT.
+    VT input converts keys for ReadFile/WriteFile consumers and interferes with
+    KEY_EVENT_RECORD delivery for Tab/Enter while printable chars still arrive. }
   Mode := Mode and not (LuxWinENABLE_PROCESSED_INPUT or LuxWinENABLE_LINE_INPUT or
-    LuxWinENABLE_ECHO_INPUT or LuxWinENABLE_QUICK_EDIT_MODE);
+    LuxWinENABLE_ECHO_INPUT or LuxWinENABLE_QUICK_EDIT_MODE or
+    LuxWinENABLE_VIRTUAL_TERMINAL_INPUT);
   Mode := Mode or LuxWinENABLE_WINDOW_INPUT or LuxWinENABLE_MOUSE_INPUT or
     LuxWinENABLE_EXTENDED_FLAGS;
-  { VT input is optional; ignore failure. }
-  if not SetConsoleMode(FInput, Mode or LuxWinENABLE_VIRTUAL_TERMINAL_INPUT) then
-    if not SetConsoleMode(FInput, Mode) then
-      raise ELuxWindowsTerminal.CreateOp('SetConsoleMode(stdin)', GetLastError);
+  if not SetConsoleMode(FInput, Mode) then
+    raise ELuxWindowsTerminal.CreateOp('SetConsoleMode(stdin)', GetLastError);
 end;
 
 procedure TLuxWindowsTerminalSession.EmitAltScreen(AEnable: Boolean);

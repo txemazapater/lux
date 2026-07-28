@@ -22,6 +22,7 @@ Targets for `tools\build.ps1`:
 | `windows-tests` | `bin\lux_windows_tests.exe` |
 | `eventloop` | `bin\eventloop_windows.exe` |
 | `controls-demo` | `bin\controls_demo_windows.exe` |
+| `input-inspector` | `bin\input_inspector_windows.exe` |
 | `all` | all of the above |
 
 Run examples:
@@ -31,9 +32,10 @@ Run examples:
 .\bin\windows_demo.exe
 .\bin\eventloop_windows.exe
 .\bin\controls_demo_windows.exe
+.\bin\input_inspector_windows.exe
 ```
 
-`windows_demo`, `eventloop_windows` and `controls_demo_windows` require an interactive console. Optional integration:
+`windows_demo`, `eventloop_windows`, `controls_demo_windows` and `input_inspector_windows` require an interactive console. Optional integration:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\test_windows_integration.ps1

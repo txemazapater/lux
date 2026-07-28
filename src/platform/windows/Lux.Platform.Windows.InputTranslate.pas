@@ -31,6 +31,7 @@ const
   LuxVK_TAB = $09;
   LuxVK_RETURN = $0D;
   LuxVK_ESCAPE = $1B;
+  LuxVK_SPACE = $20;
   LuxVK_PRIOR = $21;
   LuxVK_NEXT = $22;
   LuxVK_END = $23;
@@ -64,12 +65,14 @@ end;
 function LuxWinKeyFromVk(AVirtKey: Word; AChar: WideChar;
   out Key: TLuxKey; out Ch: UnicodeString): Boolean;
 begin
+  { Resolve logical keys from wVirtualKeyCode first. Many non-printable keys
+    arrive with UnicodeChar = #0 and must not be discarded. }
   Result := True;
   Ch := '';
   case AVirtKey of
     LuxVK_ESCAPE: Key := lkEscape;
     LuxVK_RETURN: Key := lkEnter;
-    LuxVK_TAB: begin Key := lkTab; Ch := #9; end;
+    LuxVK_TAB: Key := lkTab;
     LuxVK_BACK: Key := lkBackspace;
     LuxVK_INSERT: Key := lkInsert;
     LuxVK_DELETE: Key := lkDelete;
@@ -84,6 +87,15 @@ begin
     LuxVK_F1..LuxVK_F1 + 11: Key := TLuxKey(Ord(lkF1) + (AVirtKey - LuxVK_F1));
     LuxVK_SHIFT, LuxVK_CONTROL, LuxVK_MENU:
       Exit(False);
+    LuxVK_SPACE:
+      begin
+        { Keep Space as printable character — buttons already activate on ' '. }
+        Key := lkChar;
+        if AChar <> #0 then
+          Ch := UnicodeString(AChar)
+        else
+          Ch := ' ';
+      end;
   else
     if AChar <> #0 then
     begin
@@ -91,10 +103,7 @@ begin
       Ch := UnicodeString(AChar);
     end
     else
-    begin
-      Key := lkUnknown;
-      Result := True;
-    end;
+      Exit(False);
   end;
 end;
 
@@ -109,27 +118,24 @@ var
 begin
   Result := False;
   Event := LuxEventNone;
+
+  { Phase 5 / 5.1 policy: emit LUX key events only for key-down.
+    Key-up is ignored to avoid duplicate activations. }
+  if not Ke.bKeyDown then
+    Exit;
+
   if not LuxWinKeyFromVk(Ke.wVirtualKeyCode, Ke.UnicodeChar, Key, Ch) then
     Exit;
 
   Mods := LuxWinMods(Ke.dwControlKeyState);
-  if Ke.bKeyDown then
-  begin
-    if Ke.wRepeatCount > 1 then
-      Action := kaRepeat
-    else
-      Action := kaPress;
-  end
+  if Ke.wRepeatCount > 1 then
+    Action := kaRepeat
   else
-    Action := kaRelease;
+    Action := kaPress;
 
   Rep := Ke.wRepeatCount;
   if Rep < 1 then
     Rep := 1;
-
-  { Skip pure modifier-only or empty unknown releases without char. }
-  if (Key = lkUnknown) and (Ch = '') then
-    Exit;
 
   Event := LuxEventKey(Key, Ch, Mods, Action, Rep);
   Result := True;

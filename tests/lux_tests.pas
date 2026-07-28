@@ -649,6 +649,64 @@ begin
   end;
 end;
 
+procedure TestControlKeyboardRouting;
+var
+  WriterObj: TLuxMemoryTerminalWriter;
+  Writer: ILuxTerminalWriter;
+  Source: ILuxEventSource;
+  App: TTestControlApp;
+  B1, B2, Hidden, Disabled: TLuxButton;
+  Clicks: TClickCounter;
+begin
+  LuxSection('Lux.Control keyboard routing');
+  WriterObj := TLuxMemoryTerminalWriter.Create;
+  Writer := WriterObj;
+  Source := TFakeEventSource.Create;
+  App := TTestControlApp.Create(Writer, Source, 40, 12);
+  Clicks := TClickCounter.Create;
+  try
+    B1 := TLuxButton.Create(App.Root);
+    B2 := TLuxButton.Create(App.Root);
+    Hidden := TLuxButton.Create(App.Root);
+    Disabled := TLuxButton.Create(App.Root);
+    B1.SetBounds(0, 0, 8, 1);
+    B2.SetBounds(10, 0, 8, 1);
+    Hidden.SetBounds(20, 0, 8, 1);
+    Disabled.SetBounds(30, 0, 8, 1);
+    Hidden.Visible := False;
+    Disabled.Enabled := False;
+    B1.OnClick := @Clicks.OnClick;
+    B2.OnClick := @Clicks.OnClick;
+
+    App.Focus.SetFocus(B1);
+    LuxCheck(App.Feed(LuxEventKey(lkTab, '', [], kaPress)), 'tab next');
+    LuxCheck(App.Focus.FocusedControl = B2, 'focus moved to B2');
+    LuxCheck(App.Feed(LuxEventKey(lkTab, '', [kmShift], kaPress)), 'shift+tab');
+    LuxCheck(App.Focus.FocusedControl = B1, 'focus back to B1');
+    LuxCheck(App.Feed(LuxEventKey(lkTab, '', [], kaPress)), 'tab again');
+    LuxCheck(App.Feed(LuxEventKey(lkTab, '', [], kaPress)), 'tab wraps');
+    LuxCheck(App.Focus.FocusedControl = B1, 'wrap to B1');
+
+    LuxCheck(not App.Focus.SetFocus(Hidden), 'hidden rejects focus');
+    LuxCheck(not App.Focus.SetFocus(Disabled), 'disabled rejects focus');
+
+    App.Focus.SetFocus(B1);
+    LuxCheck(App.Feed(LuxEventKey(lkEnter, '', [], kaPress)), 'enter activates');
+    LuxCheckEqualInt(1, Clicks.Count, 'enter one click');
+    LuxCheck(App.Feed(LuxEventKey(lkChar, ' ', [], kaPress)), 'space activates');
+    LuxCheckEqualInt(2, Clicks.Count, 'space one click');
+    LuxCheck(not App.Feed(LuxEventKey(lkLeft, '', [], kaPress)), 'other key no click');
+    LuxCheckEqualInt(2, Clicks.Count, 'still two clicks');
+    LuxCheck(App.Feed(LuxEventKey(lkEnter, '', [], kaPress)), 'enter again');
+    LuxCheckEqualInt(3, Clicks.Count, 'one activation per press');
+  finally
+    Clicks.Free;
+    App.Free;
+    Source := nil;
+    Writer := nil;
+  end;
+end;
+
 begin
   WriteLn('LUX portable tests');
   TestVersion;
@@ -664,5 +722,6 @@ begin
   TestControlGeometryAndHit;
   TestControlFocus;
   TestControlRenderingAndEvents;
+  TestControlKeyboardRouting;
   Halt(LuxTestExitCode);
 end.

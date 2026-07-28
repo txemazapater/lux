@@ -17,6 +17,8 @@ uses
   Lux.Platform.Windows.TerminalWriter,
   Lux.Platform.Windows.TerminalSession,
   Lux.Platform.Windows.InputTranslate,
+  Lux.Platform.Windows.EventSource,
+  Lux.EventSource,
   Lux.Events,
   Lux.TestHarness;
 
@@ -185,6 +187,16 @@ begin
     Session.Open;
     LuxCheck(Session.IsOpen, 'session open');
     LuxCheck(Session.Writer <> nil, 'writer available');
+    ModeAfter := 0;
+    if GetConsoleMode(Session.InputHandle, ModeAfter) then
+    begin
+      LuxCheck((ModeAfter and LuxWinENABLE_VIRTUAL_TERMINAL_INPUT) = 0,
+        'VT input disabled for ReadConsoleInput path');
+      LuxCheck((ModeAfter and LuxWinENABLE_WINDOW_INPUT) <> 0, 'WINDOW_INPUT on');
+      LuxCheck((ModeAfter and LuxWinENABLE_MOUSE_INPUT) <> 0, 'MOUSE_INPUT on');
+      LuxCheck((ModeAfter and LuxWinENABLE_PROCESSED_INPUT) = 0, 'PROCESSED_INPUT off');
+      LuxCheck((ModeAfter and LuxWinENABLE_LINE_INPUT) = 0, 'LINE_INPUT off');
+    end;
     Session.Close;
     Session.Close;
     LuxCheck(not Session.IsOpen, 'session closed idempotently');
@@ -277,6 +289,131 @@ begin
   Ev := LuxEventKey(lkEscape, '', [], kaPress);
   LuxCheck(Ev.Key.Key = lkEscape, 'portable escape key');
   LuxCheckEqualStr('', Ev.Key.Ch, 'portable escape has no char');
+
+  { Phase 5.1: logical keys with UnicodeChar = #0 must not be discarded. }
+  Rec := LuxWinMakeKeyRecord(True, 1, $09, 0, #0, 0); { VK_TAB }
+  LuxCheck(LuxWindowsTranslateInputRecord(Rec, Ev), 'tab with nul char');
+  LuxCheck(Ev.Key.Key = lkTab, 'tab key');
+  LuxCheck(not (kmShift in Ev.Key.Modifiers), 'tab no shift');
+
+  Rec := LuxWinMakeKeyRecord(True, 1, $09, 0, #9, SHIFT_PRESSED);
+  LuxCheck(LuxWindowsTranslateInputRecord(Rec, Ev), 'shift+tab');
+  LuxCheck(Ev.Key.Key = lkTab, 'shift+tab is still tab');
+  LuxCheck(kmShift in Ev.Key.Modifiers, 'shift+tab has shift');
+
+  Rec := LuxWinMakeKeyRecord(True, 1, $0D, 0, #13, 0); { VK_RETURN + CR }
+  LuxCheck(LuxWindowsTranslateInputRecord(Rec, Ev), 'return with CR char');
+  LuxCheck(Ev.Key.Key = lkEnter, 'return is enter');
+  LuxCheckEqualStr('', Ev.Key.Ch, 'enter has empty ch (single logical event)');
+
+  Rec := LuxWinMakeKeyRecord(True, 1, $0D, 0, #0, 0);
+  LuxCheck(LuxWindowsTranslateInputRecord(Rec, Ev), 'return with nul char');
+  LuxCheck(Ev.Key.Key = lkEnter, 'return nul is enter');
+
+  Rec := LuxWinMakeKeyRecord(True, 1, $08, 0, #0, 0);
+  LuxCheck(LuxWindowsTranslateInputRecord(Rec, Ev) and (Ev.Key.Key = lkBackspace),
+    'backspace');
+  Rec := LuxWinMakeKeyRecord(True, 1, $2E, 0, #0, 0);
+  LuxCheck(LuxWindowsTranslateInputRecord(Rec, Ev) and (Ev.Key.Key = lkDelete),
+    'delete');
+  Rec := LuxWinMakeKeyRecord(True, 1, $27, 0, #0, 0);
+  LuxCheck(LuxWindowsTranslateInputRecord(Rec, Ev) and (Ev.Key.Key = lkRight),
+    'right');
+  Rec := LuxWinMakeKeyRecord(True, 1, $26, 0, #0, 0);
+  LuxCheck(LuxWindowsTranslateInputRecord(Rec, Ev) and (Ev.Key.Key = lkUp), 'up');
+  Rec := LuxWinMakeKeyRecord(True, 1, $28, 0, #0, 0);
+  LuxCheck(LuxWindowsTranslateInputRecord(Rec, Ev) and (Ev.Key.Key = lkDown),
+    'down');
+  Rec := LuxWinMakeKeyRecord(True, 1, $70, 0, #0, 0);
+  LuxCheck(LuxWindowsTranslateInputRecord(Rec, Ev) and (Ev.Key.Key = lkF1), 'f1');
+
+  Rec := LuxWinMakeKeyRecord(True, 1, $20, 0, ' ', 0);
+  LuxCheck(LuxWindowsTranslateInputRecord(Rec, Ev), 'space');
+  LuxCheck(Ev.Key.Key = lkChar, 'space is char');
+  LuxCheckEqualStr(' ', Ev.Key.Ch, 'space char');
+
+  Rec := LuxWinMakeKeyRecord(True, 1, Ord('Z'), 0, 'Z', 0);
+  LuxCheck(LuxWindowsTranslateInputRecord(Rec, Ev) and (Ev.Key.Key = lkChar),
+    'ascii printable');
+  LuxCheckEqualStr('Z', Ev.Key.Ch, 'ascii Z');
+
+  Rec := LuxWinMakeKeyRecord(True, 1, 0, 0, WideChar($00E9), 0);
+  LuxCheck(LuxWindowsTranslateInputRecord(Rec, Ev) and (Ev.Key.Key = lkChar),
+    'unicode char');
+  LuxCheckEqualStr(UnicodeString(WideChar($00E9)), Ev.Key.Ch, 'unicode e-acute');
+
+  Rec := LuxWinMakeKeyRecord(True, 1, Ord('a'), 0, 'a', LEFT_ALT_PRESSED);
+  LuxCheck(LuxWindowsTranslateInputRecord(Rec, Ev) and (kmAlt in Ev.Key.Modifiers),
+    'alt+letter');
+
+  Rec := LuxWinMakeKeyRecord(False, 1, $0D, 0, #13, 0);
+  LuxCheck(not LuxWindowsTranslateInputRecord(Rec, Ev), 'keyup ignored');
+
+  Rec := LuxWinMakeKeyRecord(True, 1, $09, 0, #0, 0);
+  LuxCheck(LuxWindowsTranslateInputRecord(Rec, Ev), 'nul unicode logical key kept');
+  LuxCheck(Ev.Key.Key = lkTab, 'nul unicode still tab');
+end;
+
+procedure TestLiveConsoleKeyInjection;
+var
+  Caps: TLuxWindowsConsoleCaps;
+  Session: TLuxWindowsTerminalSession;
+  Source: ILuxEventSource;
+  Rec: INPUT_RECORD;
+  Written: DWORD;
+  Ev: TLuxEvent;
+  GotTab, GotEnter, GotSpace: Boolean;
+  I: Integer;
+begin
+  LuxSection('Live console key injection');
+  Caps := TLuxWindowsTerminalSession.Probe;
+  if (not Caps.OutputIsConsole) or Caps.OutputRedirected or
+     (not Caps.InputIsConsole) then
+  begin
+    LuxCheck(True, 'live injection skipped (no usable console)');
+    Exit;
+  end;
+
+  Session := TLuxWindowsTerminalSession.Create;
+  try
+    Session.Open;
+    Source := TLuxWindowsEventSource.Create(Session);
+    FlushConsoleInputBuffer(Session.InputHandle);
+
+    Rec := LuxWinMakeKeyRecord(True, 1, $09, 0, #0, 0);
+    Written := 0;
+    LuxCheck(WriteConsoleInputW(Session.InputHandle, Rec, 1, Written) and
+      (Written = 1), 'inject tab');
+    Rec := LuxWinMakeKeyRecord(True, 1, $0D, 0, #13, 0);
+    LuxCheck(WriteConsoleInputW(Session.InputHandle, Rec, 1, Written) and
+      (Written = 1), 'inject enter');
+    Rec := LuxWinMakeKeyRecord(True, 1, $20, 0, ' ', 0);
+    LuxCheck(WriteConsoleInputW(Session.InputHandle, Rec, 1, Written) and
+      (Written = 1), 'inject space');
+
+    GotTab := False;
+    GotEnter := False;
+    GotSpace := False;
+    for I := 1 to 8 do
+    begin
+      if not Source.PollEvent(Ev) then
+        Break;
+      if Ev.Kind <> ekKey then
+        Continue;
+      if Ev.Key.Key = lkTab then
+        GotTab := True;
+      if Ev.Key.Key = lkEnter then
+        GotEnter := True;
+      if (Ev.Key.Key = lkChar) and (Ev.Key.Ch = ' ') then
+        GotSpace := True;
+    end;
+    LuxCheck(GotTab, 'live tab event');
+    LuxCheck(GotEnter, 'live enter event');
+    LuxCheck(GotSpace, 'live space event');
+  finally
+    Source := nil;
+    Session.Free;
+  end;
 end;
 
 begin
@@ -290,5 +427,6 @@ begin
   TestSeparationMemoryRenderer;
   TestErrorMessageIncludesCode;
   TestInputTranslate;
+  TestLiveConsoleKeyInjection;
   Halt(LuxTestExitCode);
 end.

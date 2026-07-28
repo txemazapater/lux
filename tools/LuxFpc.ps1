@@ -48,7 +48,8 @@ function Get-LuxWindowsUnitPaths {
     (Get-LuxPortableUnitPaths -Root $Root) + @(
         (Join-Path $Root 'src\platform\windows'),
         (Join-Path $Root 'examples\eventloop'),
-        (Join-Path $Root 'examples\controls_demo')
+        (Join-Path $Root 'examples\controls_demo'),
+        (Join-Path $Root 'examples\input_inspector')
     )
 }
 

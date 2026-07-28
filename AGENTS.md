@@ -118,4 +118,4 @@ A task is done only when:
 
 ## Current instruction to coding agents
 
-Phases 0–5 are complete. Phase 6 (layout and common controls) is next. Keep ANSI generation and the differential renderer portable. Keep Win32 in `src/platform/windows` and termios in `src/platform/unix`. Keep controls in `src/controls` free of platform units.
+Phases 0–5 and 5.1 (Windows keyboard verification) are complete. Phase 6 (layout and common controls) is next. Keep ANSI generation and the differential renderer portable. Keep Win32 in `src/platform/windows` and termios in `src/platform/unix`. Keep controls in `src/controls` free of platform units. Do not start Phase 6 until Phase 5.1 remains verified.

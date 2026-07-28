@@ -54,7 +54,7 @@ This structure is provisional and will evolve as the architecture becomes cleare
 
 ## Status
 
-**Phases 0–5** complete (foundation, portable core, ANSI diff renderer, platform backends, input loop, control foundation). See [STATUS.md](STATUS.md), [ROADMAP.md](ROADMAP.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+**Phases 0–5 / 5.1** complete (foundation through control layer + Windows keyboard verification). Phase 6 not started. See [STATUS.md](STATUS.md), [ROADMAP.md](ROADMAP.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Building
 

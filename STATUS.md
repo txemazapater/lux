@@ -4,9 +4,22 @@ Last updated: 2026-07-28
 
 ## Current phase
 
-**Phase 5 — Control foundation** — **complete**
+**Phase 5.1 — Windows keyboard input verification** — **complete**
 
-Phases 0–5 are complete. Next is Phase 6 (layout and common controls).
+Phases 0–5 and 5.1 are complete. Phase 6 (layout and common controls) is next and has not started.
+
+## Phase 5.1 — Windows keyboard verification
+
+Detected during manual `controls_demo_windows`: Space activated the focused button, but Tab / Shift+Tab / Enter did not.
+
+Root cause: `TLuxWindowsTerminalSession.ApplyInputModes` preferred `ENABLE_VIRTUAL_TERMINAL_INPUT` while the event source reads `INPUT_RECORD` via `ReadConsoleInputW`. VT input interfered with logical key delivery (Tab/Enter) while printable characters (including Space) still arrived.
+
+Fix:
+
+- Keep stdin on the Win32 record path: WINDOW_INPUT + MOUSE_INPUT, no VT input, no PROCESSED/LINE/ECHO/QUICK_EDIT.
+- Translate `wVirtualKeyCode` before Unicode fallback; never drop logical keys with `UnicodeChar = #0`.
+- Emit LUX key events only for key-down (ignore key-up).
+- Diagnostic tool: `examples/input_inspector/`.
 
 ## Phase 5 — Control foundation
 
@@ -20,9 +33,8 @@ Phases 0–5 are complete. Next is Phase 6 (layout and common controls).
 | `Lux.Button` | `src/controls/Lux.Button.pas` |
 | `Lux.ControlApplication` | `src/controls/Lux.ControlApplication.pas` |
 | Example | `examples/controls_demo/` |
+| Inspector | `examples/input_inspector/` |
 | ADR | `docs/adr/0005-control-tree-ownership-focus.md` |
-
-Covered behaviour: parent-owned control tree; local coordinates and clipping via paint context; hit testing; focus + Tab/Shift+Tab; panel/label/button; keyboard and mouse activation; portable tests against `TLuxSurface`.
 
 ## Verified
 
@@ -30,11 +42,11 @@ Covered behaviour: parent-owned control tree; local coordinates and clipping via
 |------|--------|
 | Host (dev) | Windows x86_64 FPC 3.2.2 — portable + Windows paths |
 | Portable isolation | passed (includes `src/controls`) |
-| Portable tests | **150 passed** (local Windows + Linux CI) |
-| Windows unit tests | **39 passed** (local) |
-| `controls_demo_windows` | builds locally |
-| `controls_demo_unix` | builds + PTY smoke on Linux CI |
-| CI | **green** on `main` |
+| Portable tests | expanded keyboard routing cases |
+| Windows unit tests | expanded KEY_EVENT_RECORD translation cases |
+| `controls_demo_windows` | keyboard path corrected (Tab/Enter/Space) |
+| `input_inspector_windows` | builds for live KEY_EVENT diagnosis |
+| CI | pending push |
 
 ## Commands
 
@@ -45,6 +57,7 @@ powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Target all
 powershell -ExecutionPolicy Bypass -File tools\test.ps1
 powershell -ExecutionPolicy Bypass -File tools\test_windows.ps1
 .\bin\controls_demo_windows.exe
+.\bin\input_inspector_windows.exe
 ```
 
 Linux:
@@ -58,4 +71,4 @@ Linux:
 
 ## Next
 
-Begin Phase 6 — layout and common controls (dock/stack/split, text input, list box, scroll bars, dialogs, theme primitives).
+Begin Phase 6 — layout and common controls — only after Phase 5.1 remains green on Windows locally and Linux CI.
