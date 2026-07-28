@@ -8,7 +8,9 @@ interface
 uses
   SysUtils,
   BaseUnix,
+  Unix,
   Termio,
+  Errors,
   Lux.Terminal.Errors;
 
 type
@@ -59,7 +61,7 @@ end;
 
 function LuxUnixIsTty(AFd: cint): Boolean;
 begin
-  Result := FpIsATTY(AFd) = 1;
+  Result := fpIsATTY(AFd) = 1;
 end;
 
 function LuxUnixQueryWinSize(AFd: cint; out AColumns, ARows: Integer): Boolean;
