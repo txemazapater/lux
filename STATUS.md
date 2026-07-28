@@ -42,11 +42,11 @@ Fix:
 |------|--------|
 | Host (dev) | Windows x86_64 FPC 3.2.2 — portable + Windows paths |
 | Portable isolation | passed (includes `src/controls`) |
-| Portable tests | expanded keyboard routing cases |
-| Windows unit tests | expanded KEY_EVENT_RECORD translation cases |
-| `controls_demo_windows` | keyboard path corrected (Tab/Enter/Space) |
+| Portable tests | **167 passed** (local Windows + Linux CI) |
+| Windows unit tests | **68 passed** (local; live injection skipped when redirected) |
+| `controls_demo_windows` | keyboard path corrected; please confirm Tab/Enter/Space manually |
 | `input_inspector_windows` | builds for live KEY_EVENT diagnosis |
-| CI | pending push |
+| CI | **green** on `main` |
 
 ## Commands
 
