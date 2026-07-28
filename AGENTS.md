@@ -118,4 +118,4 @@ A task is done only when:
 
 ## Current instruction to coding agents
 
-Phases 0–3B are complete. Phase 4 (input + application loop) is implemented: keep verifying Windows locally and Unix on CI. Do not begin controls (Phase 5) until Phase 4 is closed on both platforms. Keep ANSI generation and the differential renderer portable. Keep Win32 in `src/platform/windows` and termios in `src/platform/unix`.
+Phases 0–4 are complete. Phase 5 (control foundation) is next. Keep ANSI generation and the differential renderer portable. Keep Win32 in `src/platform/windows` and termios in `src/platform/unix`.

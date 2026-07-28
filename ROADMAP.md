@@ -93,6 +93,8 @@ Exit criteria for full Phase 3:
 
 ## Phase 4 - Input and application loop
 
+Status: **complete**
+
 Goal: normalize user input and host an interactive application.
 
 - Portable `Lux.Events` model (key vs Unicode char, mouse, resize, timer, quit).
@@ -161,4 +163,4 @@ Git support, repository models and editor semantics belong to Lantern, not the L
 
 ## Current priority
 
-Cursor and other coding agents must finish Phase 4 verification on Windows and Unix. Do not begin controls (Phase 5) until the eventloop example and input backends are verified on both platforms.
+Phase 4 is closed on Windows (local) and Unix (Linux CI, including eventloop PTY smoke). Begin Phase 5 — control foundation.

@@ -54,7 +54,7 @@ This structure is provisional and will evolve as the architecture becomes cleare
 
 ## Status
 
-**Phases 0–3B** complete (foundation, portable core, ANSI diff renderer, Windows + Unix terminal backends). See [STATUS.md](STATUS.md), [ROADMAP.md](ROADMAP.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+**Phases 0–4** complete (foundation, portable core, ANSI diff renderer, Windows + Unix backends, input + application loop). See [STATUS.md](STATUS.md), [ROADMAP.md](ROADMAP.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Building
 

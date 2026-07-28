@@ -4,9 +4,9 @@ Last updated: 2026-07-28
 
 ## Current phase
 
-**Phase 4 — Input and application loop** (in progress / locally verified on Windows; Unix via CI)
+**Phase 4 — Input and application loop** — **complete**
 
-Phases 0, 1, 2A, 3A and 3B are complete. Phase 4 portable model, both backends, application loop and eventloop example are implemented.
+Phases 0–4 are complete. Next is Phase 5 (control foundation).
 
 ## Phase 4 — Input and application loop
 
@@ -30,11 +30,12 @@ Covered behaviour: portable event model; `ILuxEventSource`; FIFO queue; injectab
 |------|--------|
 | Host (dev) | Windows x86_64 FPC 3.2.2 — portable + Windows paths |
 | Portable isolation | passed (`src/core`, `terminal`, `rendering`, `events`, `app`) |
-| Portable tests | **116 passed** (local Windows) |
+| Portable tests | **116 passed** (local Windows + Linux CI) |
 | Windows unit tests | **39 passed** (local; includes input translate) |
-| Unix platform tests | pending CI (parser + session; UTF-8 assert hardened) |
+| Unix platform tests | **passed** (Linux CI; parser + session) |
 | `eventloop_windows` | builds locally |
-| CI | push after UTF-8 test literal fix |
+| `eventloop_unix` | builds + PTY smoke on Linux CI |
+| CI | **green** on `main` |
 
 ## Commands
 
@@ -61,4 +62,4 @@ Linux:
 
 ## Next
 
-Confirm Phase 4 on Linux CI (parser tests + eventloop PTY smoke). Do not start Phase 5 controls until both platforms are verified.
+Begin Phase 5 — control foundation (base control, ownership, focus, panel/label/button).
