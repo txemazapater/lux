@@ -18,7 +18,7 @@ type
   private
     FHandle: THandle;
     FOwnsHandle: Boolean;
-    procedure WriteBuffer(const AData; ACount: Integer);
+    procedure WriteBuffer(APtr: Pointer; ACount: Integer);
   public
     constructor Create(AHandle: THandle; AOwnsHandle: Boolean = False);
     destructor Destroy; override;
@@ -50,18 +50,18 @@ begin
   inherited Destroy;
 end;
 
-procedure TLuxWindowsTerminalWriter.WriteBuffer(const AData; ACount: Integer);
+procedure TLuxWindowsTerminalWriter.WriteBuffer(APtr: Pointer; ACount: Integer);
 var
   P: PByte;
   Remaining: Integer;
   Written: DWORD;
 begin
-  if ACount <= 0 then
+  if (ACount <= 0) or (APtr = nil) then
     Exit;
   if (FHandle = 0) or (FHandle = INVALID_HANDLE_VALUE) then
     raise ELuxWindowsTerminal.CreateOp('WriteFile', ERROR_INVALID_HANDLE);
 
-  P := @AData;
+  P := APtr;
   Remaining := ACount;
   while Remaining > 0 do
   begin
@@ -87,7 +87,7 @@ procedure TLuxWindowsTerminalWriter.WriteRaw(const AData: RawByteString);
 begin
   if AData = '' then
     Exit;
-  WriteBuffer(AData[1], System.Length(AData));
+  WriteBuffer(@AData[1], System.Length(AData));
 end;
 
 procedure TLuxWindowsTerminalWriter.Flush;

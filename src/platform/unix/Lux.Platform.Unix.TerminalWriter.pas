@@ -18,7 +18,7 @@ type
   private
     FFd: cint;
     FOwnsFd: Boolean;
-    procedure WriteBuffer(const AData; ACount: Integer);
+    procedure WriteBuffer(APtr: Pointer; ACount: Integer);
   public
     constructor Create(AFd: cint; AOwnsFd: Boolean = False);
     destructor Destroy; override;
@@ -51,18 +51,18 @@ begin
   inherited Destroy;
 end;
 
-procedure TLuxUnixTerminalWriter.WriteBuffer(const AData; ACount: Integer);
+procedure TLuxUnixTerminalWriter.WriteBuffer(APtr: Pointer; ACount: Integer);
 var
   P: PByte;
   Remaining: Integer;
   Written: TsSize;
 begin
-  if ACount <= 0 then
+  if (ACount <= 0) or (APtr = nil) then
     Exit;
   if FFd < 0 then
     raise ELuxUnixTerminal.CreateOp('write', ESysEBADF);
 
-  P := @AData;
+  P := APtr;
   Remaining := ACount;
   while Remaining > 0 do
   begin
@@ -85,7 +85,7 @@ procedure TLuxUnixTerminalWriter.WriteRaw(const AData: RawByteString);
 begin
   if AData = '' then
     Exit;
-  WriteBuffer(AData[1], System.Length(AData));
+  WriteBuffer(@AData[1], System.Length(AData));
 end;
 
 procedure TLuxUnixTerminalWriter.Flush;
