@@ -121,6 +121,7 @@ begin
     SetLength(Data, N);
     if N > 0 then
       Move(Buf[0], Data[1], N);
+    SetCodePage(Data, CP_NONE, False);
   finally
     FpClose(ReadFd);
   end;
