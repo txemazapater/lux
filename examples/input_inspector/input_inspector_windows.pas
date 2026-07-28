@@ -1,4 +1,4 @@
-{ Interactive Windows keyboard inspector for Phase 5.1 diagnosis. }
+{ Interactive Windows input inspector (keyboard + mouse). }
 program input_inspector_windows;
 
 {$mode objfpc}{$H+}
@@ -10,6 +10,12 @@ uses
   Lux.Platform.Windows.InputTranslate,
   Lux.Terminal.Ansi,
   Lux.Events;
+
+const
+  Lux_INPUT_KEY_EVENT = Word(1);
+  Lux_INPUT_MOUSE_EVENT = Word(2);
+  Lux_INPUT_WINDOW_BUFFER_SIZE_EVENT = Word(4);
+  LuxMOUSE_HWHEELED = $0008;
 
 function VkName(AVk: Word): string;
 begin
@@ -90,7 +96,7 @@ begin
     Result := '(none)';
 end;
 
-function ActionName(A: TLuxKeyAction): string;
+function KeyActionName(A: TLuxKeyAction): string;
 begin
   case A of
     kaPress: Result := 'kaPress';
@@ -99,6 +105,64 @@ begin
   else
     Result := '?';
   end;
+end;
+
+function MouseActionName(A: TLuxMouseAction): string;
+begin
+  case A of
+    maMove: Result := 'maMove';
+    maPress: Result := 'maPress';
+    maRelease: Result := 'maRelease';
+    maWheel: Result := 'maWheel';
+    maDoubleClick: Result := 'maDoubleClick';
+  else
+    Result := '?';
+  end;
+end;
+
+function MouseButtonName(B: TLuxMouseButton): string;
+begin
+  case B of
+    mbNone: Result := 'mbNone';
+    mbLeft: Result := 'mbLeft';
+    mbMiddle: Result := 'mbMiddle';
+    mbRight: Result := 'mbRight';
+    mbX1: Result := 'mbX1';
+    mbX2: Result := 'mbX2';
+  else
+    Result := '?';
+  end;
+end;
+
+function MouseFlagsStr(AFlags: DWORD): string;
+begin
+  Result := '';
+  if AFlags = 0 then
+    Exit('0 (button press/release)');
+  if (AFlags and MOUSE_MOVED) <> 0 then
+    Result := Result + 'MOVED ';
+  if (AFlags and DOUBLE_CLICK) <> 0 then
+    Result := Result + 'DOUBLE_CLICK ';
+  if (AFlags and MOUSE_WHEELED) <> 0 then
+    Result := Result + 'WHEELED ';
+  if (AFlags and LuxMOUSE_HWHEELED) <> 0 then
+    Result := Result + 'HWHEELED ';
+  Result := Trim(Result) + Format(' (0x%0.8X)', [AFlags]);
+end;
+
+function ButtonStateStr(AButtons: DWORD): string;
+begin
+  Result := '';
+  if (AButtons and FROM_LEFT_1ST_BUTTON_PRESSED) <> 0 then
+    Result := Result + 'LEFT ';
+  if (AButtons and FROM_LEFT_2ND_BUTTON_PRESSED) <> 0 then
+    Result := Result + 'MIDDLE ';
+  if (AButtons and RIGHTMOST_BUTTON_PRESSED) <> 0 then
+    Result := Result + 'RIGHT ';
+  Result := Trim(Result);
+  if Result = '' then
+    Result := '(none)';
+  Result := Result + Format(' raw=0x%0.8X', [AButtons]);
 end;
 
 procedure DumpKeyRecord(const Ke: KEY_EVENT_RECORD);
@@ -112,7 +176,7 @@ begin
   else if Ord(Ch) < 32 then
     ChDesc := Format('ctrl/%d', [Ord(Ch)])
   else
-    ChDesc := '''' + UnicodeString(Ch) + '''';
+    ChDesc := '''' + string(UnicodeString(Ch)) + '''';
 
   WriteLn('--- KEY_EVENT_RECORD ---');
   WriteLn(Format('  bKeyDown          = %s', [BoolToStr(Ke.bKeyDown, True)]));
@@ -127,6 +191,23 @@ begin
     [Ke.dwControlKeyState, Ke.dwControlKeyState]));
 end;
 
+procedure DumpMouseRecord(const Me: MOUSE_EVENT_RECORD);
+begin
+  WriteLn('--- MOUSE_EVENT_RECORD ---');
+  WriteLn(Format('  dwMousePosition   = (%d, %d)',
+    [Me.dwMousePosition.X, Me.dwMousePosition.Y]));
+  WriteLn(Format('  dwButtonState     = %s', [ButtonStateStr(Me.dwButtonState)]));
+  WriteLn(Format('  dwControlKeyState = %d (0x%0.8X)',
+    [Me.dwControlKeyState, Me.dwControlKeyState]));
+  WriteLn(Format('  dwEventFlags      = %s', [MouseFlagsStr(Me.dwEventFlags)]));
+end;
+
+procedure DumpResizeRecord(const We: WINDOW_BUFFER_SIZE_RECORD);
+begin
+  WriteLn('--- WINDOW_BUFFER_SIZE_EVENT ---');
+  WriteLn(Format('  dwSize = (%d x %d)', [We.dwSize.X, We.dwSize.Y]));
+end;
+
 procedure DumpLuxEvent(Translated: Boolean; const Ev: TLuxEvent);
 begin
   WriteLn('--- TLuxEvent ---');
@@ -135,21 +216,39 @@ begin
     WriteLn('  (ignored / not translated)');
     Exit;
   end;
-  WriteLn(Format('  Kind        = %d', [Ord(Ev.Kind)]));
-  if Ev.Kind = ekKey then
-  begin
-    WriteLn(Format('  Key         = %s', [KeyName(Ev.Key.Key)]));
-    if Ev.Key.Ch = '' then
-      WriteLn('  Character   = (empty)')
-    else
-      WriteLn(Format('  Character   = "%s" (U+%0.4X)',
-        [string(Ev.Key.Ch), Ord(Ev.Key.Ch[1])]));
-    WriteLn(Format('  Modifiers   = %s', [ModsStr(Ev.Key.Modifiers)]));
-    WriteLn(Format('  Action      = %s', [ActionName(Ev.Key.Action)]));
-    WriteLn(Format('  RepeatCount = %d', [Ev.Key.RepeatCount]));
-  end
+  case Ev.Kind of
+    ekKey:
+      begin
+        WriteLn('  Kind        = ekKey');
+        WriteLn(Format('  Key         = %s', [KeyName(Ev.Key.Key)]));
+        if Ev.Key.Ch = '' then
+          WriteLn('  Character   = (empty)')
+        else
+          WriteLn(Format('  Character   = "%s" (U+%0.4X)',
+            [string(Ev.Key.Ch), Ord(Ev.Key.Ch[1])]));
+        WriteLn(Format('  Modifiers   = %s', [ModsStr(Ev.Key.Modifiers)]));
+        WriteLn(Format('  Action      = %s', [KeyActionName(Ev.Key.Action)]));
+        WriteLn(Format('  RepeatCount = %d', [Ev.Key.RepeatCount]));
+      end;
+    ekMouse:
+      begin
+        WriteLn('  Kind        = ekMouse');
+        WriteLn(Format('  X,Y         = (%d, %d)', [Ev.Mouse.X, Ev.Mouse.Y]));
+        WriteLn(Format('  Button      = %s', [MouseButtonName(Ev.Mouse.Button)]));
+        WriteLn(Format('  Action      = %s', [MouseActionName(Ev.Mouse.Action)]));
+        WriteLn(Format('  Modifiers   = %s', [ModsStr(Ev.Mouse.Modifiers)]));
+        WriteLn(Format('  WheelDelta  = %d (horiz=%s)',
+          [Ev.Mouse.WheelDelta, BoolToStr(Ev.Mouse.WheelHorizontal, True)]));
+      end;
+    ekResize:
+      begin
+        WriteLn('  Kind        = ekResize');
+        WriteLn(Format('  Size        = %d x %d',
+          [Ev.Resize.Width, Ev.Resize.Height]));
+      end;
   else
-    WriteLn(Format('  (non-key kind %d)', [Ord(Ev.Kind)]));
+    WriteLn(Format('  Kind        = %d', [Ord(Ev.Kind)]));
+  end;
 end;
 
 procedure ShowBanner(ASession: TLuxWindowsTerminalSession);
@@ -157,7 +256,8 @@ var
   Mode: DWORD;
 begin
   WriteLn('LUX Windows input inspector');
-  WriteLn('Press keys to inspect KEY_EVENT_RECORD -> TLuxEvent. Escape quits.');
+  WriteLn('Keys and mouse -> INPUT_RECORD -> TLuxEvent. Escape quits.');
+  WriteLn('Tip: click inside the console window; Quick Edit is off.');
   WriteLn;
   Mode := 0;
   if GetConsoleMode(ASession.InputHandle, Mode) then
@@ -200,16 +300,29 @@ begin
     Quit := False;
     while not Quit do
     begin
+      ReadCount := 0;
+      FillChar(Rec, SizeOf(Rec), 0);
       if not ReadConsoleInputW(Session.InputHandle, Rec, 1, ReadCount) then
         Break;
       if ReadCount = 0 then
         Continue;
-      if Rec.EventType <> KEY_EVENT then
-        Continue;
-      DumpKeyRecord(Rec.Event.KeyEvent);
+
+      case Rec.EventType of
+        Lux_INPUT_KEY_EVENT:
+          DumpKeyRecord(Rec.Event.KeyEvent);
+        Lux_INPUT_MOUSE_EVENT:
+          DumpMouseRecord(Rec.Event.MouseEvent);
+        Lux_INPUT_WINDOW_BUFFER_SIZE_EVENT:
+          DumpResizeRecord(Rec.Event.WindowBufferSizeEvent);
+      else
+        WriteLn(Format('--- INPUT_RECORD EventType=%d (skipped dump) ---',
+          [Rec.EventType]));
+      end;
+
       Ok := LuxWindowsTranslateInputRecord(Rec, Ev);
       DumpLuxEvent(Ok, Ev);
       WriteLn;
+
       if Ok and (Ev.Kind = ekKey) and (Ev.Key.Key = lkEscape) and
         (Ev.Key.Action <> kaRelease) then
         Quit := True;
