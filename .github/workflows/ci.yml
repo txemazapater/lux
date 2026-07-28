@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Free Pascal (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fpc
+          fpc -iV
+
+      - name: Install Free Pascal (Windows)
+        if: runner.os == 'Windows'
+        uses: gcarreno/setup-lazarus@v3
+        with:
+          lazarus-version: recursive
+          with-cache: true
+
+      - name: Build example
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            powershell -ExecutionPolicy Bypass -File tools/build.ps1
+          else
+            chmod +x tools/build.sh tools/test.sh
+            ./tools/build.sh
+          fi
+
+      - name: Run tests
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            powershell -ExecutionPolicy Bypass -File tools/test.ps1
+          else
+            ./tools/test.sh
+          fi
+
+      - name: Smoke-run hello_lux
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            ./bin/hello_lux.exe
+          else
+            ./bin/hello_lux
+          fi

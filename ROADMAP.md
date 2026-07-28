@@ -2,6 +2,8 @@
 
 ## Phase 0 - Foundation
 
+Status: **complete**
+
 Goal: make the repository buildable and predictable.
 
 - Define source tree.
@@ -17,6 +19,8 @@ Exit criteria:
 - Tests execute from one documented command.
 
 ## Phase 1 - Portable rendering core
+
+Status: **complete**
 
 Goal: create a terminal-independent visual model.
 
@@ -136,4 +140,4 @@ Git support, repository models and editor semantics belong to Lantern, not the L
 
 ## Current priority
 
-Cursor and other coding agents must work only on Phase 0 and Phase 1 until their exit criteria are met.
+Cursor and other coding agents must work on Phase 2 (terminal output / ANSI renderer) next. Do not begin controls yet.

@@ -54,7 +54,7 @@ This structure is provisional and will evolve as the architecture becomes cleare
 
 ## Status
 
-LUX is in **Phase 0**: repository scaffolding and a compilable `hello_lux` placeholder. See [STATUS.md](STATUS.md), [ROADMAP.md](ROADMAP.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+**Phase 0** complete. **Phase 1** portable rendering core is implemented. See [STATUS.md](STATUS.md), [ROADMAP.md](ROADMAP.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Building
 
@@ -64,6 +64,7 @@ Quick start (Windows):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\build.ps1
+powershell -ExecutionPolicy Bypass -File tools\test.ps1
 .\bin\hello_lux.exe
 ```
 
@@ -71,6 +72,7 @@ Quick start (Linux / macOS):
 
 ```bash
 ./tools/build.sh
+./tools/test.sh
 ./bin/hello_lux
 ```
 

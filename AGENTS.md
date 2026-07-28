@@ -118,4 +118,4 @@ A task is done only when:
 
 ## Current instruction to coding agents
 
-Start with Phase 0 and Phase 1 from `ROADMAP.md`. Create the project skeleton and implement the portable geometry, colour, cell and surface types. Do not begin controls yet.
+Phase 0 and Phase 1 are complete. Continue with Phase 2 from `ROADMAP.md`: terminal writer interfaces, ANSI sequence generation, frame diff rendering and a memory-backed writer for tests. Do not begin controls yet.
