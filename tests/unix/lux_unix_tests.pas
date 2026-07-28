@@ -255,14 +255,21 @@ begin
     LuxCheck(Ev.Key.Key = lkChar, 'ascii char key');
     LuxCheckEqualStr('a', Ev.Key.Ch, 'ascii char');
 
-    Utf8 := LuxTestBytes(#$C3);
+    { Build UTF-8 bytes by index after CP_NONE so FPC never re-encodes them. }
+    SetLength(Utf8, 1);
+    SetCodePage(RawByteString(Utf8), CP_NONE, False);
+    Utf8[1] := #$C3;
     P.Feed(Utf8);
     St := P.TryParse(Ev);
     LuxCheck(St = upsNone, 'incomplete utf8 waits');
-    P.Feed(LuxTestBytes(#$A9));
+    SetLength(Utf8, 1);
+    SetCodePage(RawByteString(Utf8), CP_NONE, False);
+    Utf8[1] := #$A9;
+    P.Feed(Utf8);
     St := P.TryParse(Ev);
     LuxCheck(St = upsEvent, 'utf8 complete');
-    LuxCheckEqualStr('é', Ev.Key.Ch, 'utf8 char');
+    { Avoid non-ASCII source literals without {$codepage utf8}; match lux_tests. }
+    LuxCheckEqualStr(UnicodeString(WideChar($00E9)), Ev.Key.Ch, 'utf8 char');
 
     P.Feed(LuxTestBytes(#27));
     St := P.TryParse(Ev);

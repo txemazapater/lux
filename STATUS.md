@@ -32,9 +32,9 @@ Covered behaviour: portable event model; `ILuxEventSource`; FIFO queue; injectab
 | Portable isolation | passed (`src/core`, `terminal`, `rendering`, `events`, `app`) |
 | Portable tests | **116 passed** (local Windows) |
 | Windows unit tests | **39 passed** (local; includes input translate) |
-| Unix platform tests | pending CI (parser + session) |
+| Unix platform tests | pending CI (parser + session; UTF-8 assert hardened) |
 | `eventloop_windows` | builds locally |
-| CI | pending push |
+| CI | push after UTF-8 test literal fix |
 
 ## Commands
 
