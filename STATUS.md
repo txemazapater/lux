@@ -30,10 +30,11 @@ Covered behaviour: parent-owned control tree; local coordinates and clipping via
 |------|--------|
 | Host (dev) | Windows x86_64 FPC 3.2.2 — portable + Windows paths |
 | Portable isolation | passed (includes `src/controls`) |
-| Portable tests | **150 passed** (local Windows) |
+| Portable tests | **150 passed** (local Windows + Linux CI) |
 | Windows unit tests | **39 passed** (local) |
 | `controls_demo_windows` | builds locally |
-| CI | pending push |
+| `controls_demo_unix` | builds + PTY smoke on Linux CI |
+| CI | **green** on `main` |
 
 ## Commands
 
