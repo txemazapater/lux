@@ -66,7 +66,7 @@ begin
   Remaining := ACount;
   while Remaining > 0 do
   begin
-    Written := FpWrite(FFd, P, Remaining);
+    Written := FpWrite(FFd, P^, Remaining);
     if Written < 0 then
       raise ELuxUnixTerminal.CreateOp('write', FpGetErrno);
     if Written = 0 then
