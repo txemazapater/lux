@@ -26,6 +26,9 @@ uses
   Lux.Labels,
   Lux.Button,
   Lux.ControlApplication,
+  Lux.Layout,
+  Lux.Layout.Vertical,
+  Lux.Layout.Horizontal,
   Lux.TestHarness;
 
 type
@@ -868,6 +871,98 @@ begin
   end;
 end;
 
+procedure TestLayoutEngine;
+var
+  Root: TLuxRootControl;
+  VBox: TLuxVerticalLayout;
+  HBox: TLuxHorizontalLayout;
+  A, B, C: TLuxControl;
+begin
+  LuxSection('Lux.Layout vertical / horizontal');
+
+  Root := TLuxRootControl.Create;
+  try
+    Root.SetBounds(0, 0, 40, 20);
+    VBox := TLuxVerticalLayout.Create(Root);
+    VBox.Padding := LuxPaddingAll(2);
+    VBox.Spacing := 1;
+
+    A := TLuxControl.Create(VBox);
+    A.PreferredHeight := 2;
+    A.MinHeight := 2;
+    B := TLuxControl.Create(VBox);
+    B.PreferredHeight := 0;
+    B.Expand := 1;
+    C := TLuxControl.Create(VBox);
+    C.PreferredHeight := 3;
+
+    LuxCheckEqualInt(40, VBox.Width, 'root fills vbox width');
+    LuxCheckEqualInt(20, VBox.Height, 'root fills vbox height');
+    { Inner height = 20 - 4 padding = 16; spacing 1*2=2; fixed 2+3=5; expand gets 9 }
+    LuxCheckEqualInt(2, A.Top, 'A top padded');
+    LuxCheckEqualInt(2, A.Height, 'A preferred height');
+    LuxCheckEqualInt(5, B.Top, 'B below A+spacing');
+    LuxCheckEqualInt(9, B.Height, 'B takes expand share');
+    LuxCheckEqualInt(15, C.Top, 'C below B+spacing');
+    LuxCheckEqualInt(3, C.Height, 'C preferred height');
+    LuxCheckEqualInt(36, A.Width, 'cross-axis stretch A');
+    LuxCheckEqualInt(2, A.Left, 'A left padded');
+
+    { Relayout on container resize. }
+    Root.SetBounds(0, 0, 40, 30);
+    LuxCheckEqualInt(30, VBox.Height, 'vbox follows root');
+    LuxCheckEqualInt(19, B.Height, 'expand grows on resize');
+
+    { Hidden child skipped. }
+    B.Visible := False;
+    LuxCheckEqualInt(2, A.Height, 'A unchanged height');
+    LuxCheckEqualInt(5, C.Top, 'C moves up when B hidden');
+  finally
+    Root.Free;
+  end;
+
+  Root := TLuxRootControl.Create;
+  try
+    Root.SetBounds(0, 0, 30, 10);
+    HBox := TLuxHorizontalLayout.Create(Root);
+    HBox.Padding := LuxPadding(1, 1, 1, 1);
+    HBox.Spacing := 2;
+    A := TLuxControl.Create(HBox);
+    A.PreferredWidth := 5;
+    A.MinWidth := 5;
+    B := TLuxControl.Create(HBox);
+    B.PreferredWidth := 0;
+    B.Expand := 1;
+    C := TLuxControl.Create(HBox);
+    C.PreferredWidth := 4;
+    C.MinWidth := 4;
+
+    { Inner width = 28; spacing 4; fixed 5+4=9; expand 15 }
+    LuxCheckEqualInt(1, A.Left, 'H A left');
+    LuxCheckEqualInt(5, A.Width, 'H A width');
+    LuxCheckEqualInt(8, B.Left, 'H B left');
+    LuxCheckEqualInt(15, B.Width, 'H B expand');
+    LuxCheckEqualInt(25, C.Left, 'H C left');
+    LuxCheckEqualInt(4, C.Width, 'H C width');
+    LuxCheckEqualInt(8, A.Height, 'H cross-axis height');
+
+    { Equal expand weights. }
+    A.Expand := 1;
+    A.PreferredWidth := 0;
+    C.Expand := 1;
+    C.PreferredWidth := 0;
+    B.Expand := 0;
+    B.PreferredWidth := 4;
+    HBox.EnsureLayout;
+    { Inner 28 - spacing 4 - fixed B 4 = 20; A and C share 10 each }
+    LuxCheckEqualInt(10, A.Width, 'equal expand A');
+    LuxCheckEqualInt(4, B.Width, 'fixed B');
+    LuxCheckEqualInt(10, C.Width, 'equal expand C');
+  finally
+    Root.Free;
+  end;
+end;
+
 procedure TestControlRenderingAndEvents;
 var
   WriterObj: TLuxMemoryTerminalWriter;
@@ -1012,6 +1107,7 @@ begin
   TestControlOwnership;
   TestControlGeometryAndHit;
   TestControlFocus;
+  TestLayoutEngine;
   TestControlRenderingAndEvents;
   TestControlKeyboardRouting;
   Halt(LuxTestExitCode);

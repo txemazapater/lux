@@ -25,8 +25,8 @@ type
     constructor Create(AParent: TLuxControl = nil);
     destructor Destroy; override;
 
-    procedure AddChild(AControl: TLuxControl);
-    procedure RemoveChild(AControl: TLuxControl);
+    procedure AddChild(AControl: TLuxControl); virtual;
+    procedure RemoveChild(AControl: TLuxControl); virtual;
     function ChildCount: Integer;
     function Children(AIndex: Integer): TLuxControl;
     function IndexOfChild(AControl: TLuxControl): Integer;
@@ -39,10 +39,15 @@ type
     procedure SendToBack(AControl: TLuxControl);
   end;
 
-  { Application drawable root. No parent; owns the tree. }
+  { Application drawable root. No parent; owns the tree.
+    On resize, each visible child fills the client area so a single top-level
+    layout can host the UI without application SetBounds calls. }
   TLuxRootControl = class(TLuxControlContainer)
+  protected
+    procedure BoundsChanged; override;
   public
     constructor Create; reintroduce;
+    procedure AddChild(AControl: TLuxControl); override;
     procedure SetHostInvalidate(AHandler: TLuxNotifyEvent);
   end;
 
@@ -301,6 +306,33 @@ end;
 constructor TLuxRootControl.Create;
 begin
   inherited Create(nil);
+end;
+
+procedure TLuxRootControl.AddChild(AControl: TLuxControl);
+var
+  Sz: TLuxSize;
+begin
+  inherited AddChild(AControl);
+  Sz := ClientSize;
+  if AControl.Visible then
+    AControl.SetBounds(0, 0, Sz.Width, Sz.Height);
+end;
+
+procedure TLuxRootControl.BoundsChanged;
+var
+  I: Integer;
+  Child: TLuxControl;
+  Sz: TLuxSize;
+begin
+  inherited BoundsChanged;
+  Sz := ClientSize;
+  for I := 0 to ChildCount - 1 do
+  begin
+    Child := Children(I);
+    if not Child.Visible then
+      Continue;
+    Child.SetBounds(0, 0, Sz.Width, Sz.Height);
+  end;
 end;
 
 procedure TLuxRootControl.SetHostInvalidate(AHandler: TLuxNotifyEvent);

@@ -25,6 +25,8 @@ type
     procedure SetBorderStyle(AValue: TLuxBorderStyle);
   protected
     function ContentOffset: TLuxPoint; override;
+    procedure BoundsChanged; override;
+    procedure HandleChildLayoutHintsChanged(AChild: TLuxControl); override;
     procedure Paint(const Ctx: TLuxPaintContext); override;
   public
     constructor Create(AParent: TLuxControl = nil);
@@ -73,6 +75,35 @@ begin
     Result := LuxPoint(1, 1)
   else
     Result := LuxPoint(0, 0);
+end;
+
+procedure TLuxPanel.BoundsChanged;
+var
+  I: Integer;
+  Child: TLuxControl;
+  Sz: TLuxSize;
+begin
+  inherited BoundsChanged;
+  { Phase 6A: expanding children fill the client so a layout can live inside
+    a bordered panel without manual SetBounds. Expand=0 keeps Phase 5 placement. }
+  Sz := ClientSize;
+  for I := 0 to ChildCount - 1 do
+  begin
+    Child := Children(I);
+    if Child.Visible and (Child.Expand > 0) then
+      Child.SetBounds(0, 0, Sz.Width, Sz.Height);
+  end;
+end;
+
+procedure TLuxPanel.HandleChildLayoutHintsChanged(AChild: TLuxControl);
+var
+  Sz: TLuxSize;
+begin
+  if AChild.Visible and (AChild.Expand > 0) then
+  begin
+    Sz := ClientSize;
+    AChild.SetBounds(0, 0, Sz.Width, Sz.Height);
+  end;
 end;
 
 procedure TLuxPanel.Paint(const Ctx: TLuxPaintContext);

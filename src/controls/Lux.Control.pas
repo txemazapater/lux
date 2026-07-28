@@ -45,6 +45,11 @@ type
     FFocusable: Boolean;
     FHasFocus: Boolean;
     FInvalidated: Boolean;
+    FMinWidth: Integer;
+    FMinHeight: Integer;
+    FPreferredWidth: Integer;
+    FPreferredHeight: Integer;
+    FExpand: Integer;
     FOnHostInvalidate: TLuxNotifyEvent;
     procedure SetLeft(AValue: Integer);
     procedure SetTop(AValue: Integer);
@@ -54,16 +59,26 @@ type
     function GetTop: Integer;
     function GetWidth: Integer;
     function GetHeight: Integer;
+    procedure SetMinWidth(AValue: Integer);
+    procedure SetMinHeight(AValue: Integer);
+    procedure SetPreferredWidth(AValue: Integer);
+    procedure SetPreferredHeight(AValue: Integer);
+    procedure SetExpand(AValue: Integer);
   protected
     { Containers override to accept ownership of a child. }
     function AcceptChild(AChild: TLuxControl): Boolean; virtual;
     procedure DetachChild(AChild: TLuxControl); virtual;
     procedure NotifyHostInvalidate;
     function ContentOffset: TLuxPoint; virtual;
+    { Size available for children after ContentOffset inset (symmetric). }
+    function ClientSize: TLuxSize; virtual;
     procedure Paint(const Ctx: TLuxPaintContext); virtual;
     function DoHandleEvent(const Event: TLuxEvent): Boolean; virtual;
     procedure BoundsChanged; virtual;
     procedure FocusChanged; virtual;
+    { Parent layout boxes override to request relayout. }
+    procedure HandleChildLayoutHintsChanged(AChild: TLuxControl); virtual;
+    procedure LayoutHintsChanged;
     property OnHostInvalidate: TLuxNotifyEvent read FOnHostInvalidate
       write FOnHostInvalidate;
   public
@@ -81,6 +96,9 @@ type
     procedure SetVisible(AValue: Boolean);
     procedure SetEnabled(AValue: Boolean);
     procedure SetFocusable(AValue: Boolean);
+
+    function ResolvedPreferredWidth: Integer;
+    function ResolvedPreferredHeight: Integer;
 
     procedure Invalidate;
     procedure Render(ATarget: TLuxSurface); overload;
@@ -104,6 +122,12 @@ type
     property Enabled: Boolean read FEnabled write SetEnabled;
     property Focusable: Boolean read FFocusable write SetFocusable;
     property HasFocus: Boolean read FHasFocus;
+    property MinWidth: Integer read FMinWidth write SetMinWidth;
+    property MinHeight: Integer read FMinHeight write SetMinHeight;
+    property PreferredWidth: Integer read FPreferredWidth write SetPreferredWidth;
+    property PreferredHeight: Integer read FPreferredHeight write SetPreferredHeight;
+    { Main-axis expand weight for parent layout boxes. 0 = fixed at preferred. }
+    property Expand: Integer read FExpand write SetExpand;
   end;
 
 function LuxDefaultControlStyle: TLuxControlStyle;
@@ -216,6 +240,11 @@ begin
   FFocusable := False;
   FHasFocus := False;
   FInvalidated := True;
+  FMinWidth := 0;
+  FMinHeight := 0;
+  FPreferredWidth := 0;
+  FPreferredHeight := 0;
+  FExpand := 0;
   FOnHostInvalidate := nil;
   if AParent <> nil then
   begin
@@ -269,6 +298,94 @@ end;
 function TLuxControl.ContentOffset: TLuxPoint;
 begin
   Result := LuxPoint(0, 0);
+end;
+
+function TLuxControl.ClientSize: TLuxSize;
+var
+  Off: TLuxPoint;
+begin
+  Off := ContentOffset;
+  Result := LuxSize(FBounds.Width - Off.X * 2, FBounds.Height - Off.Y * 2);
+  if Result.Width < 0 then
+    Result.Width := 0;
+  if Result.Height < 0 then
+    Result.Height := 0;
+end;
+
+procedure TLuxControl.HandleChildLayoutHintsChanged(AChild: TLuxControl);
+begin
+  { Base control has no layout children. }
+end;
+
+procedure TLuxControl.LayoutHintsChanged;
+begin
+  Invalidate;
+  if FParent <> nil then
+    FParent.HandleChildLayoutHintsChanged(Self);
+end;
+
+function TLuxControl.ResolvedPreferredWidth: Integer;
+begin
+  Result := FPreferredWidth;
+  if Result < FMinWidth then
+    Result := FMinWidth;
+end;
+
+function TLuxControl.ResolvedPreferredHeight: Integer;
+begin
+  Result := FPreferredHeight;
+  if Result < FMinHeight then
+    Result := FMinHeight;
+end;
+
+procedure TLuxControl.SetMinWidth(AValue: Integer);
+begin
+  if AValue < 0 then
+    AValue := 0;
+  if FMinWidth = AValue then
+    Exit;
+  FMinWidth := AValue;
+  LayoutHintsChanged;
+end;
+
+procedure TLuxControl.SetMinHeight(AValue: Integer);
+begin
+  if AValue < 0 then
+    AValue := 0;
+  if FMinHeight = AValue then
+    Exit;
+  FMinHeight := AValue;
+  LayoutHintsChanged;
+end;
+
+procedure TLuxControl.SetPreferredWidth(AValue: Integer);
+begin
+  if AValue < 0 then
+    AValue := 0;
+  if FPreferredWidth = AValue then
+    Exit;
+  FPreferredWidth := AValue;
+  LayoutHintsChanged;
+end;
+
+procedure TLuxControl.SetPreferredHeight(AValue: Integer);
+begin
+  if AValue < 0 then
+    AValue := 0;
+  if FPreferredHeight = AValue then
+    Exit;
+  FPreferredHeight := AValue;
+  LayoutHintsChanged;
+end;
+
+procedure TLuxControl.SetExpand(AValue: Integer);
+begin
+  if AValue < 0 then
+    AValue := 0;
+  if FExpand = AValue then
+    Exit;
+  FExpand := AValue;
+  LayoutHintsChanged;
 end;
 
 function TLuxControl.GetLeft: Integer;
@@ -335,7 +452,7 @@ begin
   if FVisible = AValue then
     Exit;
   FVisible := AValue;
-  Invalidate;
+  LayoutHintsChanged;
 end;
 
 procedure TLuxControl.SetEnabled(AValue: Boolean);

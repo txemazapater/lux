@@ -147,17 +147,34 @@ Status: **experimental / pending manual verification**
 
 ## Phase 6 - Layout and common controls
 
-Status: **not started** (blocked until resize strategy is accepted after manual Windows verification)
+Status: **in progress** (6A complete; later subphases not started)
 
-- Dock layout.
-- Stack layout.
-- Split layout.
-- Borders and frames.
-- Text input.
-- List box.
-- Scroll bars.
-- Dialogs.
-- Theme primitives.
+### Subphase plan
+
+| Subphase | Scope |
+|----------|--------|
+| **6A** | Layout engine + Vertical/Horizontal (padding, spacing, min/preferred, expand). ADR 0008. **Done.** |
+| **6B** | Stack layout + Splitter (mouse; layout ratio only; no capture yet if avoidable) |
+| **6C** | ScrollView + scrollbars (wheel / PageUp/Down / Home/End) |
+| **6D** | Form controls: CheckBox, RadioButton, Toggle, Separator, GroupBox |
+| **6E** | ProgressBar, Slider |
+| **6F** | Toolbar + StatusBar |
+| **6G** | Shared menu model + MenuBar + PopupMenu |
+| **6H** | TabControl (client area decoupled) |
+| **6I** | Grid layout |
+| **6J** | Docking preparation (persistable split tree; no floating windows yet) |
+
+Do not implement Lantern-specific widgets (TreeView, Editor) in LUX Phase 6.
+
+### Phase 6A — Layout core
+
+Status: **complete**
+
+- `TLuxLayoutBox`, `TLuxVerticalLayout`, `TLuxHorizontalLayout` under `src/layouts/`
+- Layout hints on `TLuxControl` (min / preferred / expand)
+- Relayout on container resize; root fills top-level children
+- `controls_demo` builds UI without application `SetBounds`
+- See `docs/adr/0008-layout-model.md`
 
 ## Phase 7 - Developer usability
 
@@ -184,4 +201,4 @@ Git support, repository models and editor semantics belong to Lantern, not the L
 
 ## Current priority
 
-Phases 5, 5.1 and 5.2 are closed. Phase 5.2.1 (deferred resize) is experimental until Windows manual verification. Do not begin Phase 6 until that decision. Do not pull Lantern-specific widgets into the LUX core.
+Phase 6A (layout core) is complete. Continue with Phase 6B (Stack + Splitter) only after 6A stays green. Phase 5.2.1 deferred resize remains experimental. Do not pull Lantern-specific widgets into the LUX core.

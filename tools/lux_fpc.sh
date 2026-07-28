@@ -59,6 +59,7 @@ lux_portable_paths() {
     "$root/src/events" \
     "$root/src/app" \
     "$root/src/controls" \
+    "$root/src/layouts" \
     "$root/tests"
 }
 

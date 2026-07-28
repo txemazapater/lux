@@ -17,7 +17,7 @@ Phase 5 introduces the first portable control layer. The application loop, surfa
 5. **One focused control.** `TLuxFocusManager` tracks a single focus. Tab / Shift+Tab walk focusable controls in tree order. No `TabIndex` yet.
 6. **Full-frame invalidation.** `Invalidate` bubbles to the host and requests a full repaint. Dirty rectangles are deferred.
 7. **No mouse capture.** A button click completes only if press and release both occur inside the control. Capture belongs to a later phase.
-8. **No layout engine.** Callers set bounds explicitly. Panel client area excludes a single optional border.
+8. **No layout engine in Phase 5.** Callers set bounds explicitly. Panel client area excludes a single optional border. Phase 6A adds layout boxes (`docs/adr/0008-layout-model.md`) without changing ownership.
 9. **Unit naming.** The label control lives in unit `Lux.Labels` because `Label` is a Free Pascal reserved word; the class remains `TLuxLabel`.
 
 ## Consequences
