@@ -64,6 +64,12 @@ type
     property Dispatcher: TLuxMouseDispatcher read FDispatcher;
     { Active appearance for paint. Defaults to builtin; same look as Phase 6. }
     property Appearance: TLuxAppearance read FAppearance;
+
+    { Set the active appearance used by the paint context.
+      Memory ownership: the application does NOT take ownership of the passed
+      TLuxAppearance instance. The caller must keep it alive for the lifetime
+      of this TLuxControlApplication (or pass nil to revert to builtin). }
+    procedure SetAppearance(AValue: TLuxAppearance);
   end;
 
 implementation
@@ -88,6 +94,19 @@ begin
   FLastMouseTarget := nil;
   FAppearance := LuxBuiltinAppearance;
   FOwnsAppearance := False;
+end;
+
+procedure TLuxControlApplication.SetAppearance(AValue: TLuxAppearance);
+begin
+  if AValue = nil then
+    AValue := LuxBuiltinAppearance;
+  if AValue = FAppearance then
+    Exit;
+
+  { S1 seam: keep only a reference. Appearance objects are caller-owned. }
+  FOwnsAppearance := False;
+  FAppearance := AValue;
+  Invalidate;
 end;
 
 destructor TLuxControlApplication.Destroy;

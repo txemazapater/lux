@@ -30,6 +30,37 @@ Panel (border), GroupBox, and ScrollView (full bounds as viewport) obey this con
 
 Controls migrate border/indicator literals to glyph IDs without changing strings or colors.
 
+### Public API + memory ownership (S1)
+
+S1 exposes a minimal public hook to swap the active appearance used by paint:
+
+- `TLuxControlApplication.Appearance`: read-only reference to the currently active appearance.
+- `TLuxControlApplication.SetAppearance(AAppearance)`: sets the active appearance used by `TLuxPaintContext`.
+
+Memory ownership:
+
+- `TLuxControlApplication` does **not** take ownership of the `TLuxAppearance` instance passed to `SetAppearance`.
+- The caller must keep the appearance object alive while the application may paint.
+- Passing `nil` reverts to the builtin appearance.
+
+### Do active appearance colors work in S1?
+
+S1 installs the seam, but it does **not** yet guarantee that *all* controls fully use
+`TLuxAppearance.Color(role)` for their runtime colors.
+
+Reasons:
+
+- Many existing controls still cache colors in control-local state (`TLuxControlStyle`,
+  or explicit `Foreground` / `Background`) initialized from the builtin defaults.
+- In this slice we route `TLuxPaintContext.Appearance` and migrate the most visible glyph/disabled
+  cases behind `Lux.Appearance`, so visual output stays identical for builtin appearance.
+
+Result:
+
+- Active appearance switching is available for framework developers.
+- Visible color role remapping across every control is deferred to the full Appearance work
+  (Phase 7 / follow-up slices).
+
 ### Non-goals
 
 Visible UX changes, theme switching UI, shared border painter API beyond glyph lookup, Range model (S2).
