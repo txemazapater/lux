@@ -147,7 +147,7 @@ Status: **experimental / pending manual verification**
 
 ## Phase 6 - Layout and common controls
 
-Status: **in progress** (6A–6D complete with visual review; 6E–6J and deferred form controls remain)
+Status: **in progress** (6A–6D implemented; expanded `form_demo` awaits visual sign-off; next **6E**)
 
 ### Subphase plan
 
@@ -156,7 +156,7 @@ Status: **in progress** (6A–6D complete with visual review; 6E–6J and deferr
 | **6A** | Layout engine + Vertical/Horizontal (padding, spacing, min/preferred, expand). ADR 0008. **Done.** |
 | **6B** | Stack + Splitter via subphases **6B.1–6B.4**. **Done.** |
 | **6C** | Mouse semantics + ScrollView foundation. **Done.** |
-| **6D** | Form controls: CheckBox, RadioButton, Label (**done**); Toggle, Separator, GroupBox deferred |
+| **6D** | Form controls: Label, CheckBox, RadioButton, Separator, Toggle, GroupBox (**complete**, visual review pending) |
 | **6E** | ProgressBar, Slider |
 | **6F** | Toolbar + StatusBar |
 | **6G** | Shared menu model + MenuBar + PopupMenu |
@@ -208,19 +208,31 @@ Status: **complete** (visual review passed)
 
 Deferred: visual scrollbar controls, kinetic scrolling, virtualization, drag-and-drop data transfer.
 
-### Phase 6D — Label, CheckBox, RadioButton
+### Phase 6D — Label, CheckBox, RadioButton, Separator, Toggle, GroupBox
 
-Status: **complete** (visual review passed)
+Status: **implemented** (visual review pending for expanded `form_demo`)
+
+Subphases:
+
+| Subphase | Status |
+|----------|--------|
+| Label / CheckBox / RadioButton | **done** (visual review passed) |
+| **6D.1** Separator | **done** |
+| **6D.2** Toggle | **done** |
+| **6D.3** GroupBox | **done** |
 
 - `TLuxLabel` preferred width/height derived from Unicode text.
 - `TLuxCheckBox`: Space + semantic click toggle; disabled inert.
 - `TLuxRadioButton`: Space + semantic click select; sibling-only mutual exclusion.
-- Focus indication unambiguous (`>` + focus colors); invalidation only on actual state change.
-- Portable tests for preferred size, Unicode, click/Space, siblings, disabled/focus.
-- `form_demo` (Windows/Unix) exercises keyboard, mouse, Tab traversal, disabled state, two radio groups.
-- See `docs/adr/0012-form-controls-checkbox-radio.md`.
+- `TLuxSeparator`: non-focusable H/V line; layout Expand on main axis.
+- `TLuxToggle`: `[ OFF ]` / `[  ON ]` indicator; Space + semantic click; CheckBox-aligned API.
+- `TLuxGroupBox`: titled border; client area via `ContentOffset` / `ClientRect` (ADR 0014).
+- Focus indication unambiguous; invalidation only on actual state change.
+- Portable tests cover preferred size, Unicode, click/Space, siblings, disabled/focus, separator, toggle, group box.
+- `form_demo` exercises all Phase 6D controls + disabled group + event log.
+- Docs: `docs/phase-6d-form-controls.md`, ADR 0012, ADR 0014.
 
-Deferred in broader 6D table: Toggle, Separator, GroupBox.
+Temporary box/toggle glyphs are isolated constants for Phase 7 migration. No Appearance System in 6D.
 
 ## Phase 7 — Appearance System
 
@@ -262,7 +274,7 @@ Principles (formalized in `docs/adr/0013-appearance-themes-glyphs-config.md`):
 
 Suggested source tree (when implementation begins): `src/appearance/`.
 
-**Sequencing:** finish remaining Phase 6 subphases (6E–6J and deferred 6D controls) before starting Phase 7 implementation.
+**Sequencing:** finish remaining Phase 6 subphases (**6E–6J**) before starting Phase 7 implementation.
 
 ## Phase 8 — Developer usability
 
@@ -289,4 +301,4 @@ Git support, repository models and editor semantics belong to Lantern, not the L
 
 ## Current priority
 
-Phases **6B.1–6B.4**, **6C**, and **6D** are complete with visual review passed. Continue the remaining Phase 6 roadmap (Toggle/Separator/GroupBox where assigned, then **6E** ProgressBar/Slider and later 6F–6J). **Phase 7 — Appearance System** follows completion of Phase 6 (see ADR 0013). Phase 5.2.1 deferred resize remains experimental. Do not pull Lantern-specific widgets into the LUX core.
+Phases **6B.1–6B.4**, **6C**, and **6D** form controls (including Separator, Toggle, GroupBox) are implemented; expanded `form_demo` awaits visual sign-off. After that sign-off, next is **6E — ProgressBar, Slider**. **Phase 7 — Appearance System** follows completion of Phase 6 (ADR 0013). Phase 5.2.1 deferred resize remains experimental. Do not pull Lantern-specific widgets into the LUX core.

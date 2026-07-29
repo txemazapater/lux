@@ -4,30 +4,28 @@ Last updated: 2026-07-29
 
 ## Current phase
 
-**Phase 6 — Layout and common controls** — **in progress** (6A–6D done)
+**Phase 6D — Form controls** — **implemented** (expanded `form_demo` awaits visual review)
 
-Phases 0–5, 5.1, 5.2, 6A, **6B.1–6B.4**, **6C**, and **6D** are complete with visual review passed. Phase 5.2.1 deferred resize remains experimental.
+Phases 0–5, 5.1, 5.2, 6A, **6B.1–6B.4**, **6C**, and **6D** controls are implemented. Phase 5.2.1 deferred resize remains experimental.
 
-**Phase 7 — Appearance System** is planned after Phase 6 completes (ADR 0013). Do not start Phase 7 implementation yet.
+**Phase 7 — Appearance System** remains planned after Phase 6 completes. Do not start Phase 7 or Phase 6E until 6D visual sign-off.
 
-Former roadmap “Developer usability” is now **Phase 8**; “Lantern readiness” is **Phase 9**.
+## Phase 6D controls
 
-## Recent closures
-
-| Item | Status |
-|------|--------|
-| 6B.4 split interaction hardening | done |
-| 6C mouse dispatcher + ScrollView | done (visual review passed) |
-| 6D Label / CheckBox / RadioButton | done (visual review passed) |
+| Control | Status |
+|---------|--------|
+| Label / CheckBox / RadioButton | done (visual passed) |
+| Separator (6D.1) | done |
+| Toggle (6D.2) | done |
+| GroupBox (6D.3) | done |
 
 ## Verified (latest local)
 
 | Item | Result |
 |------|--------|
 | Host (dev) | Windows x86_64 FPC 3.2.2 |
-| Portable tests | **495 passed** |
+| Portable tests | **555 passed** |
 | `form_demo_windows` | builds |
-| Visual review | **passed** (6D) |
 
 ## Commands
 
@@ -39,4 +37,4 @@ powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Target form-demo
 
 ## Next
 
-Continue remaining Phase 6 (deferred Toggle/Separator/GroupBox as assigned, then **6E** ProgressBar/Slider). Appearance System is Phase 7 after Phase 6.
+Visual review of expanded `form_demo`, then **6E — ProgressBar, Slider**.
