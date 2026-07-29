@@ -54,6 +54,7 @@ function Get-LuxWindowsUnitPaths {
         (Join-Path $Root 'examples\cursor_demo'),
         (Join-Path $Root 'examples\split_demo'),
         (Join-Path $Root 'examples\scroll_demo'),
+        (Join-Path $Root 'examples\form_demo'),
         (Join-Path $Root 'examples\debug'),
         (Join-Path $Root 'examples\input_inspector')
     )

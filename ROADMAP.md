@@ -156,7 +156,7 @@ Status: **in progress** (6A complete; later subphases not started)
 | **6A** | Layout engine + Vertical/Horizontal (padding, spacing, min/preferred, expand). ADR 0008. **Done.** |
 | **6B** | Stack + Splitter via subphases **6B.1–6B.5** (below). In progress. |
 | **6C** | ScrollView + scrollbars (wheel / PageUp/Down / Home/End) |
-| **6D** | Form controls: CheckBox, RadioButton, Toggle, Separator, GroupBox |
+| **6D** | Form controls: CheckBox, RadioButton, Label (**done**); Toggle, Separator, GroupBox deferred |
 | **6E** | ProgressBar, Slider |
 | **6F** | Toolbar + StatusBar |
 | **6G** | Shared menu model + MenuBar + PopupMenu |
@@ -208,6 +208,20 @@ Status: **complete** (visual review passed)
 
 Deferred: visual scrollbar controls, kinetic scrolling, virtualization, drag-and-drop data transfer.
 
+### Phase 6D — Label, CheckBox, RadioButton
+
+Status: **complete** (awaiting visual review)
+
+- `TLuxLabel` preferred width/height derived from Unicode text.
+- `TLuxCheckBox`: Space + semantic click toggle; disabled inert.
+- `TLuxRadioButton`: Space + semantic click select; sibling-only mutual exclusion.
+- Focus indication unambiguous (`>` + focus colors); invalidation only on actual state change.
+- Portable tests for preferred size, Unicode, click/Space, siblings, disabled/focus.
+- `form_demo` (Windows/Unix) exercises keyboard, mouse, Tab traversal, disabled state, two radio groups.
+- See `docs/adr/0012-form-controls-checkbox-radio.md`.
+
+Deferred in broader 6D table: Toggle, Separator, GroupBox.
+
 ## Phase 7 - Developer usability
 
 - Package distribution strategy.
@@ -233,4 +247,4 @@ Git support, repository models and editor semantics belong to Lantern, not the L
 
 ## Current priority
 
-Phases **6B.1–6B.4** and **6C** are complete (visual review passed). Phase 5.2.1 deferred resize remains experimental. Next: **6D — Checkbox, RadioButton, Label**. Do not pull Lantern-specific widgets into the LUX core.
+Phases **6B.1–6B.4**, **6C**, and **6D** (Label/CheckBox/RadioButton) are complete pending visual review of `form_demo`. Phase 5.2.1 deferred resize remains experimental. Next after 6D visual sign-off: continue form controls (Toggle/Separator/GroupBox) or **6E**. Do not pull Lantern-specific widgets into the LUX core.

@@ -74,5 +74,6 @@ lux_unix_paths() {
     "$root/examples/cursor_demo" \
     "$root/examples/split_demo" \
     "$root/examples/scroll_demo" \
+    "$root/examples/form_demo" \
     "$root/examples/debug"
 }

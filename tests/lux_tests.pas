@@ -25,6 +25,8 @@ uses
   Lux.Panel,
   Lux.Labels,
   Lux.Button,
+  Lux.CheckBox,
+  Lux.RadioButton,
   Lux.ControlApplication,
   Lux.Layout,
   Lux.Layout.Vertical,
@@ -2017,6 +2019,116 @@ begin
   end;
 end;
 
+procedure TestFormControls;
+var
+  App: TTestControlApp;
+  Src: ILuxEventSource;
+  Lbl: TLuxLabel;
+  Cb: TLuxCheckBox;
+  GroupA, GroupB: TLuxPanel;
+  R1, R2, R3, ROther: TLuxRadioButton;
+  Changes: TClickCounter;
+begin
+  LuxSection('Form controls Label / CheckBox / RadioButton');
+  Src := TFakeEventSource.Create;
+  App := TTestControlApp.Create(TLuxMemoryTerminalWriter.Create, Src, 40, 20);
+  Changes := TClickCounter.Create;
+  try
+    { Label preferred size + Unicode. }
+    Lbl := TLuxLabel.Create(App.Root);
+    LuxCheckEqualInt(0, Lbl.PreferredWidth, 'empty label pref w');
+    LuxCheckEqualInt(1, Lbl.PreferredHeight, 'empty label pref h');
+    Lbl.Text := 'Hello';
+    LuxCheckEqualInt(5, Lbl.PreferredWidth, 'ascii label pref w');
+    LuxCheckEqualInt(1, Lbl.PreferredHeight, 'ascii label pref h');
+    Lbl.Text := UnicodeString(#$00E9) + 't' + UnicodeString(#$00E9); { été }
+    LuxCheckEqualInt(3, Lbl.PreferredWidth, 'unicode label pref w');
+    LuxCheckEqualStr(UnicodeString(#$00E9) + 't' + UnicodeString(#$00E9), Lbl.Text,
+      'unicode label text');
+
+    { CheckBox click + Space toggle. }
+    Cb := TLuxCheckBox.Create(App.Root);
+    Cb.Text := 'Accept';
+    Cb.SetBounds(0, 0, 20, 1);
+    Cb.OnChange := @Changes.OnClick;
+    Changes.Count := 0;
+    LuxCheckEqualInt(4 + Length('Accept'), Cb.PreferredWidth, 'checkbox pref w');
+    LuxCheck(not Cb.Checked, 'checkbox starts unchecked');
+
+    App.Focus.SetFocus(Cb);
+    LuxCheck(Cb.HasFocus, 'checkbox focused');
+    App.Feed(LuxEventKey(lkChar, ' ', [], kaPress));
+    LuxCheck(Cb.Checked, 'space toggles on');
+    LuxCheckEqualInt(1, Changes.Count, 'space change once');
+    App.Feed(LuxEventKey(lkChar, ' ', [], kaPress));
+    LuxCheck(not Cb.Checked, 'space toggles off');
+
+    App.Feed(LuxEventMouse(2, 0, mbLeft, maPress, [], 0, False));
+    App.Feed(LuxEventMouse(2, 0, mbLeft, maRelease, [], 0, False));
+    LuxCheck(Cb.Checked, 'click toggles on');
+
+    { Disabled checkbox: no toggle, no focus. }
+    Cb.Checked := False;
+    Changes.Count := 0;
+    Cb.Enabled := False;
+    App.Focus.EnsureValid;
+    LuxCheck(not Cb.HasFocus, 'disabled loses focus');
+    LuxCheck(not App.Focus.SetFocus(Cb), 'disabled cannot receive focus');
+    App.Feed(LuxEventMouse(2, 0, mbLeft, maPress, [], 0, False));
+    App.Feed(LuxEventMouse(2, 0, mbLeft, maRelease, [], 0, False));
+    LuxCheck(not Cb.Checked, 'disabled click no toggle');
+    LuxCheckEqualInt(0, Changes.Count, 'disabled no change');
+    Cb.Enabled := True;
+
+    { Radio siblings: selecting one clears others in same parent only. }
+    GroupA := TLuxPanel.Create(App.Root);
+    GroupA.SetBounds(0, 2, 20, 5);
+    GroupB := TLuxPanel.Create(App.Root);
+    GroupB.SetBounds(22, 2, 18, 5);
+
+    R1 := TLuxRadioButton.Create(GroupA);
+    R1.Text := 'A1';
+    R1.SetBounds(0, 0, 18, 1);
+    R2 := TLuxRadioButton.Create(GroupA);
+    R2.Text := 'A2';
+    R2.SetBounds(0, 1, 18, 1);
+    R3 := TLuxRadioButton.Create(GroupA);
+    R3.Text := 'A3';
+    R3.SetBounds(0, 2, 18, 1);
+    ROther := TLuxRadioButton.Create(GroupB);
+    ROther.Text := 'B1';
+    ROther.SetBounds(0, 0, 16, 1);
+    ROther.Checked := True;
+
+    LuxCheckEqualInt(4 + Length('A1'), R1.PreferredWidth, 'radio pref w');
+
+    App.Focus.SetFocus(R1);
+    App.Feed(LuxEventKey(lkChar, ' ', [], kaPress));
+    LuxCheck(R1.Checked, 'space selects R1');
+    LuxCheck(not R2.Checked, 'R2 clear');
+    LuxCheck(not R3.Checked, 'R3 clear');
+    LuxCheck(ROther.Checked, 'other group unchanged');
+
+    App.Feed(LuxEventMouse(GroupA.Left + 1, GroupA.Top + 1, mbLeft, maPress, [], 0, False));
+    App.Feed(LuxEventMouse(GroupA.Left + 1, GroupA.Top + 1, mbLeft, maRelease, [], 0, False));
+    LuxCheck(R2.Checked, 'click selects R2');
+    LuxCheck(not R1.Checked, 'R1 cleared by sibling');
+    LuxCheck(ROther.Checked, 'other group still checked');
+
+    { Disabled radio inert. }
+    R3.Enabled := False;
+    App.Focus.SetFocus(R2);
+    App.Feed(LuxEventMouse(GroupA.Left + 1, GroupA.Top + 2, mbLeft, maPress, [], 0, False));
+    App.Feed(LuxEventMouse(GroupA.Left + 1, GroupA.Top + 2, mbLeft, maRelease, [], 0, False));
+    LuxCheck(not R3.Checked, 'disabled radio not selected');
+    LuxCheck(R2.Checked, 'R2 remains after disabled click');
+  finally
+    Changes.Free;
+    App.Free;
+    Src := nil;
+  end;
+end;
+
 begin
   WriteLn('LUX portable tests');
   TestVersion;
@@ -2043,6 +2155,7 @@ begin
   TestSplitPropertyChangesDuringDrag;
   TestSemanticMouseDispatcher;
   TestScrollViewBasics;
+  TestFormControls;
   TestControlRenderingAndEvents;
   TestControlKeyboardRouting;
   Halt(LuxTestExitCode);

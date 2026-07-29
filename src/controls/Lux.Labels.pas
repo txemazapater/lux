@@ -24,6 +24,7 @@ type
     procedure SetForeground(const AValue: TLuxColor);
     procedure SetBackground(const AValue: TLuxColor);
     procedure SetAlignment(AValue: TLuxTextAlignment);
+    procedure UpdatePreferredSize;
   protected
     procedure Paint(const Ctx: TLuxPaintContext); override;
   public
@@ -44,6 +45,13 @@ begin
   FBackground := LuxColorDefault;
   FAlignment := ltaLeft;
   Focusable := False;
+  UpdatePreferredSize;
+end;
+
+procedure TLuxLabel.UpdatePreferredSize;
+begin
+  PreferredHeight := 1;
+  PreferredWidth := Length(FText);
 end;
 
 procedure TLuxLabel.SetText(const AValue: UnicodeString);
@@ -51,6 +59,7 @@ begin
   if FText = AValue then
     Exit;
   FText := AValue;
+  UpdatePreferredSize;
   Invalidate;
 end;
 
