@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (Phase 6C)
+Accepted (Phase 6C — visual review passed)
 
 ## Context
 
