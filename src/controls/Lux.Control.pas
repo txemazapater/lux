@@ -51,6 +51,7 @@ type
     FPreferredHeight: Integer;
     FExpand: Integer;
     FOnHostInvalidate: TLuxNotifyEvent;
+    FOnWillFree: TLuxNotifyEvent;
     procedure SetLeft(AValue: Integer);
     procedure SetTop(AValue: Integer);
     procedure SetWidth(AValue: Integer);
@@ -104,6 +105,8 @@ type
     procedure Render(ATarget: TLuxSurface); overload;
     procedure Render(const Ctx: TLuxPaintContext); overload; virtual;
     function HandleEvent(const Event: TLuxEvent): Boolean;
+    { Called by the application when this control stops being the mouse target. }
+    procedure MouseLeave; virtual;
 
     function LocalToRoot(const P: TLuxPoint): TLuxPoint;
     function RootToLocal(const P: TLuxPoint): TLuxPoint;
@@ -128,6 +131,8 @@ type
     property PreferredHeight: Integer read FPreferredHeight write SetPreferredHeight;
     { Main-axis expand weight for parent layout boxes. 0 = fixed at preferred. }
     property Expand: Integer read FExpand write SetExpand;
+    { Invoked at the start of Destroy so hosts can drop capture refs. }
+    property OnWillFree: TLuxNotifyEvent read FOnWillFree write FOnWillFree;
   end;
 
 function LuxDefaultControlStyle: TLuxControlStyle;
@@ -246,6 +251,7 @@ begin
   FPreferredHeight := 0;
   FExpand := 0;
   FOnHostInvalidate := nil;
+  FOnWillFree := nil;
   if AParent <> nil then
   begin
     if not AParent.AcceptChild(Self) then
@@ -257,6 +263,8 @@ destructor TLuxControl.Destroy;
 var
   OldParent: TLuxControl;
 begin
+  if Assigned(FOnWillFree) then
+    FOnWillFree(Self);
   if FHasFocus then
     FHasFocus := False;
   OldParent := FParent;
@@ -614,6 +622,10 @@ end;
 function TLuxControl.DoHandleEvent(const Event: TLuxEvent): Boolean;
 begin
   Result := False;
+end;
+
+procedure TLuxControl.MouseLeave;
+begin
 end;
 
 end.

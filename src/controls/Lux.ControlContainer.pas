@@ -21,6 +21,9 @@ type
     procedure DetachChild(AChild: TLuxControl); override;
     procedure Paint(const Ctx: TLuxPaintContext); override;
     procedure PaintChildren(const Ctx: TLuxPaintContext); virtual;
+    { Return True when (AX,AY) in root space hits internal chrome (not a child).
+      When True, HitTestRoot returns Self (if enabled). }
+    function HitTestInternalRoot(AX, AY: Integer): Boolean; virtual;
   public
     constructor Create(AParent: TLuxControl = nil);
     destructor Destroy; override;
@@ -42,14 +45,31 @@ type
   { Application drawable root. No parent; owns the tree.
     On resize, each visible child fills the client area so a single top-level
     layout can host the UI without application SetBounds calls. }
+  TLuxCaptureMouseEvent = procedure(AControl: TLuxControl) of object;
+  TLuxQueryCapturedEvent = function: TLuxControl of object;
+  TLuxQueryCursorEvent = function: TObject of object;
+
   TLuxRootControl = class(TLuxControlContainer)
+  private
+    FCaptureMouse: TLuxCaptureMouseEvent;
+    FReleaseMouse: TLuxCaptureMouseEvent;
+    FQueryCaptured: TLuxQueryCapturedEvent;
+    FQueryCursor: TLuxQueryCursorEvent;
   protected
     procedure BoundsChanged; override;
   public
     constructor Create; reintroduce;
     procedure AddChild(AControl: TLuxControl); override;
     procedure SetHostInvalidate(AHandler: TLuxNotifyEvent);
+    procedure SetInteractionHandlers(ACapture, ARelease: TLuxCaptureMouseEvent;
+      AQueryCaptured: TLuxQueryCapturedEvent; AQueryCursor: TLuxQueryCursorEvent);
+    procedure RequestCaptureMouse(AControl: TLuxControl);
+    procedure RequestReleaseMouse(AControl: TLuxControl);
+    function CurrentCapturedControl: TLuxControl;
+    function CurrentCursorManager: TObject;
   end;
+
+function LuxFindRootControl(AControl: TLuxControl): TLuxRootControl;
 
 implementation
 
@@ -221,6 +241,11 @@ begin
   PaintChildren(Ctx);
 end;
 
+function TLuxControlContainer.HitTestInternalRoot(AX, AY: Integer): Boolean;
+begin
+  Result := False;
+end;
+
 function TLuxControlContainer.HitTestRoot(AX, AY: Integer): TLuxControl;
 var
   I: Integer;
@@ -232,6 +257,14 @@ begin
     Exit;
   if not ContainsRootPoint(AX, AY) then
     Exit;
+
+  { Internal chrome (e.g. split divider) before children. }
+  if HitTestInternalRoot(AX, AY) then
+  begin
+    if IsEffectivelyEnabled then
+      Exit(Self);
+    Exit(nil);
+  end;
 
   for I := ChildCount - 1 downto 0 do
   begin
@@ -338,6 +371,55 @@ end;
 procedure TLuxRootControl.SetHostInvalidate(AHandler: TLuxNotifyEvent);
 begin
   OnHostInvalidate := AHandler;
+end;
+
+procedure TLuxRootControl.SetInteractionHandlers(ACapture, ARelease: TLuxCaptureMouseEvent;
+  AQueryCaptured: TLuxQueryCapturedEvent; AQueryCursor: TLuxQueryCursorEvent);
+begin
+  FCaptureMouse := ACapture;
+  FReleaseMouse := ARelease;
+  FQueryCaptured := AQueryCaptured;
+  FQueryCursor := AQueryCursor;
+end;
+
+procedure TLuxRootControl.RequestCaptureMouse(AControl: TLuxControl);
+begin
+  if Assigned(FCaptureMouse) then
+    FCaptureMouse(AControl);
+end;
+
+procedure TLuxRootControl.RequestReleaseMouse(AControl: TLuxControl);
+begin
+  if Assigned(FReleaseMouse) then
+    FReleaseMouse(AControl);
+end;
+
+function TLuxRootControl.CurrentCapturedControl: TLuxControl;
+begin
+  Result := nil;
+  if Assigned(FQueryCaptured) then
+    Result := FQueryCaptured();
+end;
+
+function TLuxRootControl.CurrentCursorManager: TObject;
+begin
+  Result := nil;
+  if Assigned(FQueryCursor) then
+    Result := FQueryCursor();
+end;
+
+function LuxFindRootControl(AControl: TLuxControl): TLuxRootControl;
+var
+  Cur: TLuxControl;
+begin
+  Result := nil;
+  Cur := AControl;
+  while Cur <> nil do
+  begin
+    if Cur is TLuxRootControl then
+      Exit(TLuxRootControl(Cur));
+    Cur := Cur.Parent;
+  end;
 end;
 
 end.

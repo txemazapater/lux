@@ -30,6 +30,7 @@ uses
   Lux.Layout.Vertical,
   Lux.Layout.Horizontal,
   Lux.Layout.Stack,
+  Lux.Layout.Split,
   Lux.Cursor,
   Lux.TestHarness;
 
@@ -50,6 +51,17 @@ type
   public
     Count: Integer;
     procedure OnClick(Sender: TObject);
+  end;
+
+  TMouseProbe = class(TLuxControl)
+  public
+    Presses: Integer;
+    Releases: Integer;
+    Moves: Integer;
+    LastX: Integer;
+    LastY: Integer;
+  protected
+    function DoHandleEvent(const Event: TLuxEvent): Boolean; override;
   end;
 
   TTestControlApp = class(TLuxControlApplication)
@@ -89,6 +101,32 @@ end;
 procedure TClickCounter.OnClick(Sender: TObject);
 begin
   Inc(Count);
+end;
+
+function TMouseProbe.DoHandleEvent(const Event: TLuxEvent): Boolean;
+begin
+  Result := False;
+  if Event.Kind <> ekMouse then
+    Exit;
+  LastX := Event.Mouse.X;
+  LastY := Event.Mouse.Y;
+  case Event.Mouse.Action of
+    maPress:
+      begin
+        Inc(Presses);
+        Result := True;
+      end;
+    maRelease:
+      begin
+        Inc(Releases);
+        Result := True;
+      end;
+    maMove:
+      begin
+        Inc(Moves);
+        Result := True;
+      end;
+  end;
 end;
 
 function TTestControlApp.Feed(const Event: TLuxEvent): Boolean;
@@ -1234,6 +1272,214 @@ begin
   end;
 end;
 
+procedure TestSplitGeometryAndHit;
+var
+  Root: TLuxRootControl;
+  Split, Nested: TLuxSplitContainer;
+  A, B, C, D: TLuxControl;
+  Hit: TLuxControl;
+  Raised: Boolean;
+  I, PrevLeft: Integer;
+begin
+  LuxSection('Lux.Layout.Split geometry / hit');
+  Root := TLuxRootControl.Create;
+  try
+    Root.SetBounds(0, 0, 40, 20);
+    Split := TLuxSplitContainer.Create(Root);
+    Split.DividerSize := 1;
+    Split.Ratio := LuxSplitRatioHalf;
+    Split.Orientation := loVertical;
+    A := TLuxControl.Create(Split);
+    B := TLuxControl.Create(Split);
+
+    LuxCheckEqualInt(19, A.Width, 'equal vertical first width');
+    LuxCheckEqualInt(20, A.Height, 'equal vertical first height');
+    LuxCheckEqualInt(19, A.Left + A.Width, 'divider starts after first');
+    LuxCheckEqualInt(20, B.Left, 'second after divider');
+    LuxCheckEqualInt(20, B.Width, 'equal vertical second width');
+
+    Split.Ratio := 2500;
+    LuxCheckEqualInt((39 * 2500) div LuxSplitRatioMax, A.Width, 'ratio 2500 first');
+    LuxCheckEqualInt(39 - A.Width, B.Width, 'ratio 2500 second');
+
+    Split.DividerSize := 3;
+    LuxCheckEqualInt(A.Width + 3 + B.Width, 40, 'divider thickness accounted');
+
+    Split.DividerSize := 1;
+    Split.FirstMinimumSize := 10;
+    Split.SecondMinimumSize := 10;
+    Split.Ratio := 0;
+    LuxCheckEqualInt(10, A.Width, 'first min clamps ratio 0');
+    LuxCheckEqualInt(29, B.Width, 'second gets remainder');
+
+    Split.Ratio := LuxSplitRatioMax;
+    LuxCheckEqualInt(29, A.Width, 'second min clamps ratio max');
+    LuxCheckEqualInt(10, B.Width, 'second at minimum');
+
+    Split.FirstMinimumSize := 25;
+    Split.SecondMinimumSize := 25;
+    Split.Ratio := LuxSplitRatioHalf;
+    LuxCheckEqualInt(A.Width + B.Width, 39, 'competing mins fill distributable');
+    LuxCheck(A.Width >= 0, 'competing first non-negative');
+    LuxCheck(B.Width >= 0, 'competing second non-negative');
+
+    Split.FirstMinimumSize := 0;
+    Split.SecondMinimumSize := 0;
+    Split.SetBounds(0, 0, 2, 2);
+    LuxCheck(A.Width >= 0, 'tiny first width non-neg');
+    LuxCheck(B.Width >= 0, 'tiny second width non-neg');
+    LuxCheck(A.Height >= 0, 'tiny height non-neg');
+
+    Split.SetBounds(0, 0, 40, 20);
+    Split.Orientation := loHorizontal;
+    Split.Ratio := LuxSplitRatioHalf;
+    Split.DividerSize := 1;
+    LuxCheckEqualInt(9, A.Height, 'equal horizontal first height');
+    LuxCheckEqualInt(10, B.Top, 'horizontal second top');
+    LuxCheckEqualInt(10, B.Height, 'equal horizontal second height');
+
+    Split.Orientation := loVertical;
+    Split.Ratio := LuxSplitRatioHalf;
+    Hit := Root.HitTestRoot(18, 5);
+    LuxCheck(Hit = A, 'pane point hits first');
+    Hit := Root.HitTestRoot(19, 5);
+    LuxCheck(Hit = Split, 'divider point hits split');
+    Hit := Root.HitTestRoot(20, 5);
+    LuxCheck(Hit = B, 'pane point hits second');
+
+    PrevLeft := A.Width;
+    for I := 1 to 5 do
+    begin
+      Split.Ratio := LuxSplitRatioHalf;
+      LuxCheckEqualInt(PrevLeft, A.Width, 'deterministic repeated layout');
+    end;
+
+    { Replace second pane with a panel so a nested split can own children. }
+    Root.RemoveChild(Split);
+    Split.Free;
+    Split := TLuxSplitContainer.Create(Root);
+    Split.Orientation := loVertical;
+    Split.Ratio := LuxSplitRatioHalf;
+    Split.DividerSize := 1;
+    A := TLuxControl.Create(Split);
+    B := TLuxPanel.Create(Split);
+    Nested := TLuxSplitContainer.Create(B);
+    Nested.Expand := 1;
+    Nested.Orientation := loHorizontal;
+    Nested.Ratio := LuxSplitRatioHalf;
+    Nested.DividerSize := 1;
+    C := TLuxControl.Create(Nested);
+    D := TLuxControl.Create(Nested);
+    LuxCheck(C.Height >= 0, 'nested first height');
+    LuxCheck(D.Height >= 0, 'nested second height');
+    LuxCheckEqualInt(C.Height + 1 + D.Height, Nested.Height, 'nested fills height');
+
+    Raised := False;
+    try
+      TLuxControl.Create(Split);
+    except
+      on ELuxControl do
+        Raised := True;
+    end;
+    LuxCheck(Raised, 'third pane rejected');
+  finally
+    Root.Free;
+  end;
+end;
+
+procedure TestMouseCaptureAndSplitDrag;
+var
+  App: TTestControlApp;
+  Src: ILuxEventSource;
+  Split: TLuxSplitContainer;
+  First, Second: TMouseProbe;
+  Other: TLuxControl;
+  StartW, MidRatio: Integer;
+begin
+  LuxSection('Mouse capture / split drag');
+  Src := TFakeEventSource.Create;
+  App := TTestControlApp.Create(TLuxMemoryTerminalWriter.Create, Src, 40, 20);
+  try
+    App.Cursor.Capabilities := LuxCursorCapsFull;
+    Split := TLuxSplitContainer.Create(App.Root);
+    Split.Orientation := loVertical;
+    Split.Ratio := LuxSplitRatioHalf;
+    Split.DividerSize := 1;
+    Split.FirstMinimumSize := 5;
+    Split.SecondMinimumSize := 5;
+    First := TMouseProbe.Create(Split);
+    Second := TMouseProbe.Create(Split);
+
+    LuxCheck(App.CapturedControl = nil, 'no capture initially');
+    App.CaptureMouse(Split);
+    LuxCheck(App.CapturedControl = Split, 'capture set');
+    App.Feed(LuxEventMouse(0, 0, mbLeft, maMove, [], 0, False));
+    LuxCheckEqualInt(0, First.Moves, 'capture skips pane hit-test');
+    LuxCheck(App.CapturedControl = Split, 'capture holds across move');
+    App.ReleaseMouse(Split);
+
+    App.CaptureMouse(First);
+    App.Feed(LuxEventMouse(3, 4, mbLeft, maMove, [], 0, False));
+    LuxCheckEqualInt(3, First.LastX, 'captured local x');
+    LuxCheckEqualInt(4, First.LastY, 'captured local y');
+    LuxCheckEqualInt(1, First.Moves, 'captured move delivered');
+
+    App.ReleaseMouse(First);
+
+    App.CaptureMouse(Split);
+    App.ReleaseMouse(First);
+    LuxCheck(App.CapturedControl = Split, 'wrong release ignored');
+    App.ReleaseMouse(Split);
+    LuxCheck(App.CapturedControl = nil, 'correct release clears');
+
+    App.CaptureMouse(Split);
+    Split.Visible := False;
+    LuxCheck(App.CapturedControl = nil, 'hidden clears capture');
+    Split.Visible := True;
+
+    Other := TLuxControl.Create(nil);
+    try
+      App.CaptureMouse(Other);
+      LuxCheck(App.CapturedControl = nil, 'off-tree capture rejected');
+    finally
+      Other.Free;
+    end;
+
+    StartW := First.Width;
+    App.Feed(LuxEventMouse(19, 5, mbLeft, maPress, [], 0, False));
+    LuxCheck(App.CapturedControl = Split, 'press on divider captures');
+    LuxCheck(Split.Dragging, 'dragging started');
+    LuxCheck(App.Cursor.Requested.Active, 'drag requests cursor');
+    LuxCheckEqualInt(0, First.Presses, 'first pane no divider press');
+    LuxCheckEqualInt(0, Second.Presses, 'second pane no divider press');
+
+    App.Feed(LuxEventMouse(28, 5, mbLeft, maMove, [], 0, False));
+    LuxCheck(Split.Dragging, 'drag continues outside divider');
+    LuxCheck(First.Width > StartW, 'movement widens first pane');
+    MidRatio := Split.Ratio;
+    LuxCheck(MidRatio > LuxSplitRatioHalf, 'ratio increased');
+
+    App.Feed(LuxEventMouse(100, 5, mbLeft, maMove, [], 0, False));
+    LuxCheckEqualInt(40 - 1 - Split.SecondMinimumSize, First.Width,
+      'min second respected while dragging past edge');
+
+    App.Feed(LuxEventMouse(100, 5, mbLeft, maRelease, [], 0, False));
+    LuxCheck(not Split.Dragging, 'release ends drag');
+    LuxCheck(App.CapturedControl = nil, 'release ends capture');
+    LuxCheck(not App.Cursor.Requested.Active, 'cursor cleared after release');
+    LuxCheckEqualInt(0, First.Releases, 'pane no divider release');
+
+    App.Cursor.Capabilities := LuxCursorCapsNone;
+    App.Feed(LuxEventMouse(First.Width, 5, mbLeft, maPress, [], 0, False));
+    LuxCheck(Split.Dragging, 'drag works without cursor caps');
+    App.Feed(LuxEventMouse(First.Width + 2, 5, mbLeft, maRelease, [], 0, False));
+    LuxCheck(not Split.Dragging, 'release without caps');
+  finally
+    App.Free;
+    Src := nil;
+  end;
+end;
+
 begin
   WriteLn('LUX portable tests');
   TestVersion;
@@ -1252,6 +1498,8 @@ begin
   TestLayoutEngine;
   TestStackLayout;
   TestCursorManager;
+  TestSplitGeometryAndHit;
+  TestMouseCaptureAndSplitDrag;
   TestControlRenderingAndEvents;
   TestControlKeyboardRouting;
   Halt(LuxTestExitCode);

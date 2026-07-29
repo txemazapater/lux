@@ -24,7 +24,19 @@ type
   private
     FRoot: TLuxRootControl;
     FFocus: TLuxFocusManager;
+    FCaptured: TLuxControl;
+    FLastMouseTarget: TLuxControl;
     procedure HostInvalidate(Sender: TObject);
+    procedure ControlWillFree(Sender: TObject);
+    procedure HookWillFree(AControl: TLuxControl);
+    procedure UnhookWillFreeIfUnused(AControl: TLuxControl);
+    function BelongsToRoot(AControl: TLuxControl): Boolean;
+    function CaptureStillValid(AControl: TLuxControl): Boolean;
+    procedure ClearCapture;
+    procedure EnsureCaptureValid;
+    function QueryCaptured: TLuxControl;
+    function QueryCursor: TObject;
+    procedure SetMouseTarget(ATarget: TLuxControl);
     function TranslateMouseToLocal(AControl: TLuxControl;
       const Event: TLuxEvent): TLuxEvent;
     function HandleTab(const Event: TLuxEvent): Boolean;
@@ -36,6 +48,10 @@ type
     constructor Create(AWriter: ILuxTerminalWriter; ASource: ILuxEventSource;
       AWidth, AHeight: Integer; AClock: ILuxClock = nil);
     destructor Destroy; override;
+
+    procedure CaptureMouse(AControl: TLuxControl);
+    procedure ReleaseMouse(AControl: TLuxControl);
+    function CapturedControl: TLuxControl;
 
     property Root: TLuxRootControl read FRoot;
     property Focus: TLuxFocusManager read FFocus;
@@ -50,11 +66,17 @@ begin
   FRoot := TLuxRootControl.Create;
   FRoot.SetBounds(0, 0, Width, Height);
   FRoot.SetHostInvalidate(@HostInvalidate);
+  FRoot.SetInteractionHandlers(@CaptureMouse, @ReleaseMouse, @QueryCaptured,
+    @QueryCursor);
   FFocus := TLuxFocusManager.Create(FRoot);
+  FCaptured := nil;
+  FLastMouseTarget := nil;
 end;
 
 destructor TLuxControlApplication.Destroy;
 begin
+  ClearCapture;
+  SetMouseTarget(nil);
   if FFocus <> nil then
     FFocus.ClearFocus;
   FreeAndNil(FFocus);
@@ -65,6 +87,124 @@ end;
 procedure TLuxControlApplication.HostInvalidate(Sender: TObject);
 begin
   Invalidate;
+end;
+
+procedure TLuxControlApplication.ControlWillFree(Sender: TObject);
+begin
+  if Sender = FCaptured then
+    FCaptured := nil;
+  if Sender = FLastMouseTarget then
+    FLastMouseTarget := nil;
+end;
+
+procedure TLuxControlApplication.HookWillFree(AControl: TLuxControl);
+begin
+  if AControl = nil then
+    Exit;
+  AControl.OnWillFree := @ControlWillFree;
+end;
+
+procedure TLuxControlApplication.UnhookWillFreeIfUnused(AControl: TLuxControl);
+begin
+  if AControl = nil then
+    Exit;
+  if (AControl <> FCaptured) and (AControl <> FLastMouseTarget) then
+    if AControl.OnWillFree = @ControlWillFree then
+      AControl.OnWillFree := nil;
+end;
+
+function TLuxControlApplication.BelongsToRoot(AControl: TLuxControl): Boolean;
+var
+  Cur: TLuxControl;
+begin
+  Result := False;
+  Cur := AControl;
+  while Cur <> nil do
+  begin
+    if Cur = FRoot then
+      Exit(True);
+    Cur := Cur.Parent;
+  end;
+end;
+
+function TLuxControlApplication.CaptureStillValid(AControl: TLuxControl): Boolean;
+begin
+  Result := (AControl <> nil) and BelongsToRoot(AControl) and
+    AControl.IsEffectivelyVisible and AControl.IsEffectivelyEnabled;
+end;
+
+procedure TLuxControlApplication.ClearCapture;
+var
+  Old: TLuxControl;
+begin
+  Old := FCaptured;
+  FCaptured := nil;
+  UnhookWillFreeIfUnused(Old);
+end;
+
+procedure TLuxControlApplication.EnsureCaptureValid;
+begin
+  if FCaptured = nil then
+    Exit;
+  if not CaptureStillValid(FCaptured) then
+    ClearCapture;
+end;
+
+function TLuxControlApplication.QueryCaptured: TLuxControl;
+begin
+  EnsureCaptureValid;
+  Result := FCaptured;
+end;
+
+function TLuxControlApplication.QueryCursor: TObject;
+begin
+  Result := Cursor;
+end;
+
+procedure TLuxControlApplication.CaptureMouse(AControl: TLuxControl);
+begin
+  if AControl = nil then
+  begin
+    ClearCapture;
+    Exit;
+  end;
+  if not CaptureStillValid(AControl) then
+    Exit;
+  if FCaptured = AControl then
+    Exit;
+  ClearCapture;
+  FCaptured := AControl;
+  HookWillFree(FCaptured);
+end;
+
+procedure TLuxControlApplication.ReleaseMouse(AControl: TLuxControl);
+begin
+  if (AControl = nil) or (AControl <> FCaptured) then
+    Exit;
+  ClearCapture;
+end;
+
+function TLuxControlApplication.CapturedControl: TLuxControl;
+begin
+  EnsureCaptureValid;
+  Result := FCaptured;
+end;
+
+procedure TLuxControlApplication.SetMouseTarget(ATarget: TLuxControl);
+var
+  Old: TLuxControl;
+begin
+  if FLastMouseTarget = ATarget then
+    Exit;
+  Old := FLastMouseTarget;
+  FLastMouseTarget := ATarget;
+  if Old <> nil then
+  begin
+    Old.MouseLeave;
+    UnhookWillFreeIfUnused(Old);
+  end;
+  if FLastMouseTarget <> nil then
+    HookWillFree(FLastMouseTarget);
 end;
 
 procedure TLuxControlApplication.OnResize(AWidth, AHeight: Integer);
@@ -111,6 +251,7 @@ var
   LocalEvent: TLuxEvent;
 begin
   FFocus.EnsureValid;
+  EnsureCaptureValid;
   Result := False;
   case Event.Kind of
     ekKey:
@@ -124,7 +265,11 @@ begin
       end;
     ekMouse:
       begin
-        Target := FRoot.HitTestRoot(Event.Mouse.X, Event.Mouse.Y);
+        if CaptureStillValid(FCaptured) then
+          Target := FCaptured
+        else
+          Target := FRoot.HitTestRoot(Event.Mouse.X, Event.Mouse.Y);
+        SetMouseTarget(Target);
         if Target = nil then
           Exit(False);
         if (Event.Mouse.Action = maPress) and (Event.Mouse.Button = mbLeft) and
@@ -132,6 +277,8 @@ begin
           FFocus.SetFocus(Target);
         LocalEvent := TranslateMouseToLocal(Target, Event);
         Result := Target.HandleEvent(LocalEvent);
+        if (Event.Mouse.Action = maRelease) and (Event.Mouse.Button = mbLeft) then
+          ReleaseMouse(FCaptured);
       end;
   else
     Result := inherited HandleEvent(Event);

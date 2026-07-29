@@ -71,5 +71,6 @@ lux_unix_paths() {
     "$root/examples/eventloop" \
     "$root/examples/controls_demo" \
     "$root/examples/stack_demo" \
-    "$root/examples/cursor_demo"
+    "$root/examples/cursor_demo" \
+    "$root/examples/split_demo"
 }

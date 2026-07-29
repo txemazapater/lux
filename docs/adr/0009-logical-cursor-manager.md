@@ -21,5 +21,5 @@ Default application capabilities are **basic** (hide/show + move). Demos that ex
 ## Consequences
 
 - Limited terminals still work: caret may lack shape/blink but position/visibility remain correct when supported.
-- 6B.5 splitter drag can temporarily `Request` a shape without platform code.
+- Split-container drag (6B.3) temporarily `Request`s a shape without platform code.
 - No change to control hit-testing or focus.
