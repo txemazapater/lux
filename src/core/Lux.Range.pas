@@ -24,13 +24,14 @@ type
     procedure SetValue(AValue: Integer);
     procedure SetStep(AValue: Integer);
     procedure AssignValue(AValue: Integer; ANotify: Boolean);
+    procedure AssignValue64(AValue: Int64; ANotify: Boolean);
     procedure NotifyChange;
   public
     constructor Create(AMinimum: Integer = 0; AMaximum: Integer = 100;
       AValue: Integer = 0; AStep: Integer = 1);
 
-    { Maximum - Minimum; always >= 0. }
-    function Span: Integer;
+    { Maximum - Minimum as Int64 so full signed Integer bounds never overflow. }
+    function Span: Int64;
     { Normalized position in [0, 1]. Zero when Span = 0. }
     function Ratio: Double;
     { Sets Value from a ratio in [0, 1] (clamped). }
@@ -95,16 +96,26 @@ begin
     FOnChange(Self);
 end;
 
-procedure TLuxRange.AssignValue(AValue: Integer; ANotify: Boolean);
+procedure TLuxRange.AssignValue64(AValue: Int64; ANotify: Boolean);
 var
   NewValue: Integer;
 begin
-  NewValue := LuxClampInt(AValue, FMinimum, FMaximum);
+  if AValue < FMinimum then
+    NewValue := FMinimum
+  else if AValue > FMaximum then
+    NewValue := FMaximum
+  else
+    NewValue := Integer(AValue);
   if NewValue = FValue then
     Exit;
   FValue := NewValue;
   if ANotify then
     NotifyChange;
+end;
+
+procedure TLuxRange.AssignValue(AValue: Integer; ANotify: Boolean);
+begin
+  AssignValue64(AValue, ANotify);
 end;
 
 procedure TLuxRange.SetMinimum(AValue: Integer);
@@ -114,7 +125,7 @@ begin
   FMinimum := AValue;
   if FMaximum < FMinimum then
     FMaximum := FMinimum;
-  AssignValue(FValue, True);
+  AssignValue64(FValue, True);
 end;
 
 procedure TLuxRange.SetMaximum(AValue: Integer);
@@ -124,12 +135,12 @@ begin
   FMaximum := AValue;
   if FMinimum > FMaximum then
     FMinimum := FMaximum;
-  AssignValue(FValue, True);
+  AssignValue64(FValue, True);
 end;
 
 procedure TLuxRange.SetValue(AValue: Integer);
 begin
-  AssignValue(AValue, True);
+  AssignValue64(AValue, True);
 end;
 
 procedure TLuxRange.SetStep(AValue: Integer);
@@ -139,25 +150,26 @@ begin
   FStep := AValue;
 end;
 
-function TLuxRange.Span: Integer;
+function TLuxRange.Span: Int64;
 begin
-  Result := FMaximum - FMinimum;
+  Result := Int64(FMaximum) - Int64(FMinimum);
 end;
 
 function TLuxRange.Ratio: Double;
 var
-  S: Integer;
+  S: Int64;
 begin
   S := Span;
   if S <= 0 then
     Result := 0.0
   else
-    Result := (FValue - FMinimum) / S;
+    Result := Double(Int64(FValue) - Int64(FMinimum)) / Double(S);
 end;
 
 procedure TLuxRange.SetRatio(ARatio: Double);
 var
-  S: Integer;
+  S: Int64;
+  Offset: Int64;
 begin
   if ARatio < 0.0 then
     ARatio := 0.0
@@ -165,19 +177,26 @@ begin
     ARatio := 1.0;
   S := Span;
   if S <= 0 then
-    AssignValue(FMinimum, True)
+    AssignValue64(FMinimum, True)
   else
-    AssignValue(FMinimum + Round(ARatio * S), True);
+  begin
+    Offset := Round(ARatio * Double(S));
+    if Offset < 0 then
+      Offset := 0
+    else if Offset > S then
+      Offset := S;
+    AssignValue64(Int64(FMinimum) + Offset, True);
+  end;
 end;
 
 procedure TLuxRange.Increment;
 begin
-  AssignValue(FValue + FStep, True);
+  AssignValue64(Int64(FValue) + Int64(FStep), True);
 end;
 
 procedure TLuxRange.Decrement;
 begin
-  AssignValue(FValue - FStep, True);
+  AssignValue64(Int64(FValue) - Int64(FStep), True);
 end;
 
 end.

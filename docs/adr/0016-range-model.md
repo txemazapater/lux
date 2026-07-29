@@ -19,8 +19,11 @@ value models.
   interval; `Step >= 1`.
 - `OnChange` fires only when `Value` actually changes (including when a bound
   change forces a reclamp).
-- Helpers: `Span`, `Ratio` / `SetRatio`, `Increment` / `Decrement`, plus
+- Helpers: `Span` (`Int64`), `Ratio` / `SetRatio`, `Increment` / `Decrement`, plus
   `LuxClampInt` for ad-hoc clamping.
+- Arithmetic that can overflow `Integer` (`Span`, ratio mapping, step) uses
+  `Int64` intermediates; public `Minimum` / `Maximum` / `Value` / `Step` stay
+  `Integer`.
 - **Not** included: viewport / page / window size. ScrollBar adds that beside
   Range (value span stays shared).
 

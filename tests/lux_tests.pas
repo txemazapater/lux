@@ -1194,7 +1194,7 @@ begin
     LuxCheckEqualInt(100, R.Maximum, 'default max');
     LuxCheckEqualInt(0, R.Value, 'default value');
     LuxCheckEqualInt(1, R.Step, 'default step');
-    LuxCheckEqualInt(100, R.Span, 'default span');
+    LuxCheck(R.Span = 100, 'default span');
     LuxCheck(Abs(R.Ratio) < 1e-9, 'default ratio zero');
 
     R.OnChange := @Changes.OnChange;
@@ -1258,7 +1258,7 @@ begin
 
     R.Minimum := 50;
     R.Maximum := 50;
-    LuxCheckEqualInt(0, R.Span, 'zero span');
+    LuxCheck(R.Span = 0, 'zero span');
     LuxCheck(Abs(R.Ratio) < 1e-9, 'zero span ratio');
     R.SetRatio(0.7);
     LuxCheckEqualInt(50, R.Value, 'zero span setratio keeps value');
@@ -1273,6 +1273,58 @@ begin
     LuxCheckEqualInt(10, R.Maximum, 'ctor raises max to min');
     LuxCheckEqualInt(10, R.Value, 'ctor clamps value');
     LuxCheckEqualInt(1, R.Step, 'ctor floors step');
+  finally
+    R.Free;
+  end;
+
+  R := TLuxRange.Create(Low(Integer), High(Integer), 0);
+  try
+    LuxCheckEqualInt(Low(Integer), R.Minimum, 'full min');
+    LuxCheckEqualInt(High(Integer), R.Maximum, 'full max');
+    LuxCheck(R.Span = Int64(High(Integer)) - Int64(Low(Integer)), 'full span');
+    LuxCheck(Abs(R.Ratio - 0.5) < 1e-9, 'full mid ratio');
+
+    R.SetRatio(0.0);
+    LuxCheckEqualInt(Low(Integer), R.Value, 'full setratio low');
+    LuxCheck(Abs(R.Ratio) < 1e-9, 'full ratio at min');
+    R.SetRatio(1.0);
+    LuxCheckEqualInt(High(Integer), R.Value, 'full setratio high');
+    LuxCheck(Abs(R.Ratio - 1.0) < 1e-9, 'full ratio at max');
+    R.SetRatio(0.5);
+    LuxCheckEqualInt(Integer(Int64(Low(Integer)) + Round(0.5 * Double(R.Span))),
+      R.Value, 'full setratio half');
+
+    R.Value := High(Integer) - 1;
+    R.Step := 10;
+    R.Increment;
+    LuxCheckEqualInt(High(Integer), R.Value, 'inc near high clamps');
+    R.Increment;
+    LuxCheckEqualInt(High(Integer), R.Value, 'inc at high stays');
+
+    R.Value := Low(Integer) + 1;
+    R.Step := 10;
+    R.Decrement;
+    LuxCheckEqualInt(Low(Integer), R.Value, 'dec near low clamps');
+    R.Decrement;
+    LuxCheckEqualInt(Low(Integer), R.Value, 'dec at low stays');
+
+    R.Value := High(Integer);
+    R.Step := High(Integer);
+    R.Increment;
+    LuxCheckEqualInt(High(Integer), R.Value, 'large step inc clamps');
+
+    R.Value := Low(Integer);
+    R.Decrement;
+    LuxCheckEqualInt(Low(Integer), R.Value, 'large step dec clamps');
+
+    R.Value := High(Integer) - 5;
+    R.Step := High(Integer);
+    R.Increment;
+    LuxCheckEqualInt(High(Integer), R.Value, 'large step past high clamps');
+
+    R.Value := Low(Integer) + 5;
+    R.Decrement;
+    LuxCheckEqualInt(Low(Integer), R.Value, 'large step past low clamps');
   finally
     R.Free;
   end;
