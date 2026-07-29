@@ -16,7 +16,9 @@ uses
 
 type
   { One-cell border on all sides; title drawn into the top border.
-    Children are parented in client space via ContentOffset=(1,1). }
+    Children are parented in client space via ContentOffset=(1,1).
+    Title affects PreferredWidth only — never MinWidth — so layouts cannot
+    force the control wider than the parent and clip the right border. }
   TLuxGroupBox = class(TLuxControlContainer)
   private
     FText: UnicodeString;
@@ -51,6 +53,56 @@ const
   LuxGbH = WideChar($2500);  { ─ }
   LuxGbV = WideChar($2502);  { │ }
 
+function LuxGbDisplayWidth(const S: UnicodeString): Integer;
+var
+  I: Integer;
+  Cp: Cardinal;
+  W: Byte;
+begin
+  Result := 0;
+  I := 1;
+  while LuxNextCodepoint(S, I, Cp) do
+  begin
+    W := LuxCodepointWidth(Cp);
+    if W = 0 then
+      W := 1;
+    Inc(Result, W);
+  end;
+end;
+
+{ Truncate S so its display width is at most MaxCells (never splits a wide glyph). }
+function LuxGbTruncateToCells(const S: UnicodeString; MaxCells: Integer): UnicodeString;
+var
+  I, Used: Integer;
+  Cp: Cardinal;
+  W: Byte;
+  Glyph: UnicodeString;
+begin
+  Result := '';
+  if MaxCells <= 0 then
+    Exit;
+  I := 1;
+  Used := 0;
+  while LuxNextCodepoint(S, I, Cp) do
+  begin
+    W := LuxCodepointWidth(Cp);
+    if W = 0 then
+      W := 1;
+    if Used + W > MaxCells then
+      Break;
+    if Cp <= $FFFF then
+      Glyph := UnicodeString(WideChar(Cp))
+    else
+    begin
+      Cp := Cp - $10000;
+      Glyph := UnicodeString(WideChar($D800 + (Cp shr 10))) +
+        UnicodeString(WideChar($DC00 + (Cp and $3FF)));
+    end;
+    Result := Result + Glyph;
+    Inc(Used, W);
+  end;
+end;
+
 constructor TLuxGroupBox.Create(AParent: TLuxControl);
 begin
   inherited Create(AParent);
@@ -66,26 +118,22 @@ end;
 
 procedure TLuxGroupBox.UpdatePreferredFromTitle;
 var
-  TitleW: Integer;
+  Need: Integer;
+  TitleCells: Integer;
 begin
-  TitleW := Length(FText);
-  { corners + spaces around title: "┌ Title ─…┐" needs TitleW + 4 when titled }
-  if TitleW > 0 then
-  begin
-    if PreferredWidth < TitleW + 4 then
-      PreferredWidth := TitleW + 4;
-    if MinWidth < TitleW + 4 then
-      MinWidth := TitleW + 4;
-  end
+  { Border minimum only — title must not raise MinWidth or vertical layouts
+    will assign Width > parent Inner.Width and clip the right edge. }
+  MinWidth := 2;
+  MinHeight := 2;
+
+  TitleCells := LuxGbDisplayWidth(FText);
+  if TitleCells > 0 then
+    Need := TitleCells + 4 { corners + flanking spaces }
   else
-  begin
-    if MinWidth < 2 then
-      MinWidth := 2;
-  end;
+    Need := 2;
+  PreferredWidth := Need;
   if PreferredHeight < 2 then
     PreferredHeight := 2;
-  if MinHeight < 2 then
-    MinHeight := 2;
 end;
 
 procedure TLuxGroupBox.SetText(const AValue: UnicodeString);
@@ -161,7 +209,7 @@ end;
 procedure TLuxGroupBox.Paint(const Ctx: TLuxPaintContext);
 var
   Fill: TLuxCell;
-  X, Y, W, H, TitleStart, TitleEnd, MaxTitle: Integer;
+  X, Y, W, H, MaxTitleCells, TitleCells: Integer;
   Ch: UnicodeString;
   Fg: TLuxColor;
   Title: UnicodeString;
@@ -181,13 +229,9 @@ begin
   if (W < 2) or (H < 2) then
     Exit;
 
-  LuxPaintText(Ctx, 0, 0, UnicodeString(LuxGbTL), Fg, FBackground, []);
-  LuxPaintText(Ctx, W - 1, 0, UnicodeString(LuxGbTR), Fg, FBackground, []);
-  LuxPaintText(Ctx, 0, H - 1, UnicodeString(LuxGbBL), Fg, FBackground, []);
-  LuxPaintText(Ctx, W - 1, H - 1, UnicodeString(LuxGbBR), Fg, FBackground, []);
-
+  { Edges first (including corner cells as horizontals/verticals placeholders). }
   Ch := UnicodeString(LuxGbH);
-  for X := 1 to W - 2 do
+  for X := 0 to W - 1 do
   begin
     LuxPaintText(Ctx, X, 0, Ch, Fg, FBackground, []);
     LuxPaintText(Ctx, X, H - 1, Ch, Fg, FBackground, []);
@@ -199,21 +243,27 @@ begin
     LuxPaintText(Ctx, W - 1, Y, Ch, Fg, FBackground, []);
   end;
 
-  { Title into top border: " Title " between corners. }
-  if FText = '' then
-    Exit;
-  MaxTitle := W - 4;
-  if MaxTitle < 1 then
-    Exit;
-  Title := FText;
-  if Length(Title) > MaxTitle then
-    Title := Copy(Title, 1, MaxTitle);
-  TitleStart := 2;
-  TitleEnd := TitleStart + Length(Title) - 1;
-  LuxPaintText(Ctx, 1, 0, ' ', Fg, FBackground, []);
-  LuxPaintText(Ctx, TitleStart, 0, Title, Fg, FBackground, []);
-  if TitleEnd + 1 <= W - 2 then
-    LuxPaintText(Ctx, TitleEnd + 1, 0, ' ', Fg, FBackground, []);
+  { Title into top border between corners: " Title " clipped by cell columns.
+    Never write into column 0 or W-1. }
+  if (FText <> '') and (W >= 5) then
+  begin
+    MaxTitleCells := W - 4;
+    Title := LuxGbTruncateToCells(FText, MaxTitleCells);
+    TitleCells := LuxGbDisplayWidth(Title);
+    if TitleCells > 0 then
+    begin
+      LuxPaintText(Ctx, 1, 0, ' ', Fg, FBackground, []);
+      LuxPaintText(Ctx, 2, 0, Title, Fg, FBackground, []);
+      if 2 + TitleCells <= W - 2 then
+        LuxPaintText(Ctx, 2 + TitleCells, 0, ' ', Fg, FBackground, []);
+    end;
+  end;
+
+  { Corners last so a long / wide title cannot corrupt them. }
+  LuxPaintText(Ctx, 0, 0, UnicodeString(LuxGbTL), Fg, FBackground, []);
+  LuxPaintText(Ctx, W - 1, 0, UnicodeString(LuxGbTR), Fg, FBackground, []);
+  LuxPaintText(Ctx, 0, H - 1, UnicodeString(LuxGbBL), Fg, FBackground, []);
+  LuxPaintText(Ctx, W - 1, H - 1, UnicodeString(LuxGbBR), Fg, FBackground, []);
 end;
 
 end.

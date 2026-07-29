@@ -2332,15 +2332,18 @@ begin
 
     Gb.Text := 'Prefs';
     LuxCheck(Gb.PreferredWidth >= Length('Prefs') + 4, 'pref w from title');
+    LuxCheckEqualInt(2, Gb.MinWidth, 'title does not raise min width');
     LuxCheckEqualInt(Length('Prefs'), Length(Gb.Text), 'title stored');
 
     Gb.Text := 'Prefs';
     { no-op }
     Gb.Text := UnicodeString(#$65E5) + ' title';
     LuxCheck(Length(Gb.Text) = 7, 'unicode title length');
+    LuxCheckEqualInt(2, Gb.MinWidth, 'unicode title keeps min width 2');
 
     Gb.Text := '';
     LuxCheckEqualStr('', Gb.Text, 'empty title ok');
+    LuxCheckEqualInt(2, Gb.PreferredWidth, 'empty title preferred resets');
 
     Gb.SetBounds(0, 0, 20, 8);
     CR := Gb.ClientRect;
@@ -2396,12 +2399,43 @@ begin
     Surf := App.Surface;
     LuxCheckEqualStr(UnicodeString(WideChar($250C)), Surf.Cells[0, 0].Text,
       'top-left corner');
+    LuxCheckEqualStr(UnicodeString(WideChar($2510)), Surf.Cells[19, 0].Text,
+      'top-right corner');
     LuxCheckEqualStr('T', Surf.Cells[2, 0].Text, 'title first char');
 
-    { Clipped long title. }
+    { Clipped long title must not overwrite corners. }
     Gb.Text := 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     Gb.SetBounds(0, 0, 10, 4);
     App.Root.Render(App.Surface);
+    Surf := App.Surface;
+    LuxCheckEqualStr(UnicodeString(WideChar($250C)), Surf.Cells[0, 0].Text,
+      'clipped title keeps TL');
+    LuxCheckEqualStr(UnicodeString(WideChar($2510)), Surf.Cells[9, 0].Text,
+      'clipped title keeps TR');
+    LuxCheckEqualStr(UnicodeString(WideChar($2518)), Surf.Cells[9, 3].Text,
+      'clipped title keeps BR');
+
+    { Wide CJK title truncated by cells, corners intact. }
+    Gb.Text := UnicodeString(#$65E5) + UnicodeString(#$672C) +
+      UnicodeString(#$8A9E) + UnicodeString(#$30BF) + UnicodeString(#$30A4);
+    Gb.SetBounds(0, 0, 8, 3);
+    App.Root.Render(App.Surface);
+    Surf := App.Surface;
+    LuxCheckEqualStr(UnicodeString(WideChar($250C)), Surf.Cells[0, 0].Text,
+      'wide title keeps TL');
+    LuxCheckEqualStr(UnicodeString(WideChar($2510)), Surf.Cells[7, 0].Text,
+      'wide title keeps TR');
+
+    { Long title in a narrow parent layout must not force overflow min-width. }
+    Gb.Text := 'Very long group box title that used to raise MinWidth';
+    LuxCheckEqualInt(2, Gb.MinWidth, 'long title min width still 2');
+    Gb.SetBounds(0, 0, 12, 4);
+    App.Root.Render(App.Surface);
+    Surf := App.Surface;
+    LuxCheckEqualStr(UnicodeString(WideChar($2510)), Surf.Cells[11, 0].Text,
+      'narrow bounds keep TR');
+    LuxCheckEqualStr(UnicodeString(WideChar($2518)), Surf.Cells[11, 3].Text,
+      'narrow bounds keep BR');
 
     { Children preserved after text change. }
     LuxCheck(Gb.ChildCount >= 2, 'children preserved');

@@ -21,12 +21,14 @@ uses
   Lux.GroupBox,
   Lux.Layout,
   Lux.Layout.Vertical,
+  Lux.Layout.Horizontal,
   Lux.Events,
   Lux.Debug.EventLog;
 
 type
   TFormDemoApp = class(TLuxControlApplication)
   private
+    FColumns: TLuxHorizontalLayout;
     FMain: TLuxVerticalLayout;
     FTitle: TLuxLabel;
     FUnicode: TLuxLabel;
@@ -63,10 +65,18 @@ begin
 
   FLastAction := 'ready';
 
-  FMain := TLuxVerticalLayout.Create(Root);
-  FMain.Padding := LuxPaddingAll(1);
+  { Two columns: form controls | Actions log. Do not overlay the log on top of
+    FMain — that clipped GroupBox right borders under the opaque log fill. }
+  FColumns := TLuxHorizontalLayout.Create(Root);
+  FColumns.Padding := LuxPaddingAll(1);
+  FColumns.Spacing := 1;
+  FColumns.Expand := 1;
+
+  FMain := TLuxVerticalLayout.Create(FColumns);
+  FMain.Padding := LuxPaddingAll(0);
   FMain.Spacing := 0;
   FMain.Expand := 1;
+  FMain.MinWidth := 24;
 
   FTitle := TLuxLabel.Create(FMain);
   FTitle.Text := 'Phase 6D — Form controls';
@@ -140,10 +150,12 @@ begin
   FQuit.PreferredHeight := 1;
   FQuit.OnClick := @QuitClick;
 
-  FLog := TEventLogControl.Create(Root);
+  FLog := TEventLogControl.Create(FColumns);
   FLog.Title := 'Actions';
   FLog.Capacity := 64;
-  FLog.SetBounds(Width - 28, 1, 27, Height - 2);
+  FLog.PreferredWidth := 28;
+  FLog.MinWidth := 20;
+  FLog.Expand := 0;
   FLog.Add('Demo ready — Tab/Space/Click Q=quit');
 
   Focus.SetFocus(FCb1);
@@ -211,8 +223,6 @@ begin
     [BoolToStr(FCb1.Checked, True), BoolToStr(FCb2.Checked, True),
      BoolToStr(FToggle.Checked, True), RadioChoice, Width, Height]);
   FDiag.Text := Format('Focus=%s  Last=%s', [FocusName, FLastAction]);
-  if FLog <> nil then
-    FLog.SetBounds(Width - 28, 1, 27, Height - 2);
 end;
 
 function TFormDemoApp.HandleEvent(const Event: TLuxEvent): Boolean;

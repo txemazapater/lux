@@ -26,7 +26,7 @@ Status: **complete** pending visual review of the expanded `form_demo`.
 - RadioButton: 4 + text
 - Toggle: 1 (focus marker) + 7 (indicator) + optional spacing + text
 - Separator: 1×1 preferred; Expand=1 on main axis
-- GroupBox: minimum 2×2; preferred width grows with title (`Length(Text)+4`)
+- GroupBox: minimum 2×2 (border only); preferred width grows with title display width (`+4` for corners/spaces); title never raises `MinWidth`
 
 ## GroupBox client area
 

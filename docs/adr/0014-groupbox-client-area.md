@@ -17,7 +17,9 @@ Accepted (Phase 6D.3)
 - `ContentOffset = (1,1)` so child local `(0,0)` maps to the first interior cell;
 - public `ClientRect` returning the interior rectangle in local coordinates (empty when bounds are too small);
 - non-focusable chrome; descendants remain focusable and participate in Tab order;
-- disabled parent state disables descendants through existing `IsEffectivelyEnabled`.
+- disabled parent state disables descendants through existing `IsEffectivelyEnabled`;
+- title influences `PreferredWidth` only (`display cells + 4`); `MinWidth` stays `2` so layouts never force the control wider than the parent and clip the right border;
+- title is clipped by display columns into the top edge; corners are painted last.
 
 Children are painted and clipped through the normal container pipeline. Expand>0 children fill `ClientSize`, matching `TLuxPanel`.
 
