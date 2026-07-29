@@ -21,10 +21,6 @@ const
   LuxSplitRatioHalf = 5000;
 
 type
-  { loVertical = vertical divider (panes left/right).
-    loHorizontal = horizontal divider (panes top/bottom). }
-  TLuxOrientation = (loHorizontal, loVertical);
-
   TLuxSplitContainer = class(TLuxControlContainer)
   private
     FFirstPane: TLuxControl;

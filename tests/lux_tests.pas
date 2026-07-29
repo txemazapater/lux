@@ -27,6 +27,7 @@ uses
   Lux.Button,
   Lux.CheckBox,
   Lux.RadioButton,
+  Lux.Separator,
   Lux.ControlApplication,
   Lux.Layout,
   Lux.Layout.Vertical,
@@ -2129,6 +2130,105 @@ begin
   end;
 end;
 
+procedure TestSeparator;
+var
+  App: TTestControlApp;
+  Src: ILuxEventSource;
+  Sep: TLuxSeparator;
+  Btn: TLuxButton;
+  VLay: TLuxVerticalLayout;
+  HLay: TLuxHorizontalLayout;
+  Surf: TLuxSurface;
+  GlyphH, GlyphV: UnicodeString;
+begin
+  LuxSection('Lux.Separator');
+  Src := TFakeEventSource.Create;
+  App := TTestControlApp.Create(TLuxMemoryTerminalWriter.Create, Src, 40, 12);
+  GlyphH := UnicodeString(WideChar($2500));
+  GlyphV := UnicodeString(WideChar($2502));
+  try
+    Sep := TLuxSeparator.Create(App.Root);
+    LuxCheck(Sep.Orientation = loHorizontal, 'default orientation horizontal');
+    LuxCheck(not Sep.Focusable, 'separator not focusable');
+    LuxCheckEqualInt(1, Sep.PreferredHeight, 'horiz pref h');
+    LuxCheckEqualInt(1, Sep.MinHeight, 'horiz min h');
+    LuxCheckEqualInt(1, Sep.PreferredWidth, 'horiz pref w');
+
+    Sep.Orientation := loVertical;
+    LuxCheckEqualInt(1, Sep.PreferredWidth, 'vert pref w');
+    LuxCheckEqualInt(1, Sep.MinWidth, 'vert min w');
+    LuxCheckEqualInt(1, Sep.PreferredHeight, 'vert pref h');
+
+    Sep.Orientation := loHorizontal;
+    LuxCheck(Sep.Orientation = loHorizontal, 'orientation back to horizontal');
+
+    { Zero bounds safe. }
+    Sep.SetBounds(0, 0, 0, 0);
+    Sep.Render(App.Surface);
+
+    { Horizontal render. }
+    Sep.SetBounds(0, 1, 10, 1);
+    App.Root.Render(App.Surface);
+    Surf := App.Surface;
+    LuxCheckEqualStr(GlyphH, Surf.Cells[0, 1].Text, 'horiz glyph left');
+    LuxCheckEqualStr(GlyphH, Surf.Cells[5, 1].Text, 'horiz glyph mid');
+
+    { Vertical render. }
+    Sep.Orientation := loVertical;
+    Sep.SetBounds(2, 0, 1, 5);
+    App.Root.Render(App.Surface);
+    Surf := App.Surface;
+    LuxCheckEqualStr(GlyphV, Surf.Cells[2, 0].Text, 'vert glyph top');
+    LuxCheckEqualStr(GlyphV, Surf.Cells[2, 2].Text, 'vert glyph mid');
+
+    { Disabled safe paint. }
+    Sep.Enabled := False;
+    Sep.Render(App.Surface);
+    Sep.Enabled := True;
+
+    { Tab skips separator; button remains focusable. }
+    Sep.Orientation := loHorizontal;
+    Sep.SetBounds(0, 3, 10, 1);
+    Btn := TLuxButton.Create(App.Root);
+    Btn.Text := 'Go';
+    Btn.SetBounds(0, 4, 8, 1);
+    LuxCheck(not App.Focus.SetFocus(Sep), 'cannot focus separator');
+    LuxCheck(App.Focus.SetFocus(Btn), 'can focus button');
+    App.Feed(LuxEventKey(lkTab, '', [], kaPress));
+    LuxCheck(Btn.HasFocus or (App.Focus.FocusedControl = Btn),
+      'tab stays on focusables');
+
+    { Mouse over separator does not capture. }
+    App.Feed(LuxEventMouse(1, 3, mbLeft, maPress, [], 0, False));
+    LuxCheck(App.CapturedControl = nil, 'separator no capture');
+    App.Feed(LuxEventMouse(1, 3, mbLeft, maRelease, [], 0, False));
+
+    { Layout integration. }
+    VLay := TLuxVerticalLayout.Create(App.Root);
+    VLay.SetBounds(20, 0, 18, 6);
+    Sep := TLuxSeparator.Create(VLay);
+    Sep.Orientation := loHorizontal;
+    Btn := TLuxButton.Create(VLay);
+    Btn.Text := 'A';
+    Btn.PreferredHeight := 1;
+    VLay.SetBounds(20, 0, 18, 7);
+    LuxCheck(Sep.Height >= 1, 'vlayout sep height');
+
+    HLay := TLuxHorizontalLayout.Create(App.Root);
+    HLay.SetBounds(0, 6, 20, 4);
+    Sep := TLuxSeparator.Create(HLay);
+    Sep.Orientation := loVertical;
+    Btn := TLuxButton.Create(HLay);
+    Btn.Text := 'B';
+    Btn.PreferredWidth := 4;
+    HLay.SetBounds(0, 6, 22, 4);
+    LuxCheck(Sep.Width >= 1, 'hlayout sep width');
+  finally
+    App.Free;
+    Src := nil;
+  end;
+end;
+
 begin
   WriteLn('LUX portable tests');
   TestVersion;
@@ -2156,6 +2256,7 @@ begin
   TestSemanticMouseDispatcher;
   TestScrollViewBasics;
   TestFormControls;
+  TestSeparator;
   TestControlRenderingAndEvents;
   TestControlKeyboardRouting;
   Halt(LuxTestExitCode);

@@ -26,6 +26,11 @@ type
     Height: Integer;
   end;
 
+  { Shared orientation for separators, splits and similar chrome.
+    loHorizontal = horizontal run / top-bottom panes.
+    loVertical = vertical run / left-right panes. }
+  TLuxOrientation = (loHorizontal, loVertical);
+
 function LuxPoint(AX, AY: Integer): TLuxPoint;
 function LuxSize(AWidth, AHeight: Integer): TLuxSize;
 function LuxRect(ALeft, ATop, AWidth, AHeight: Integer): TLuxRect;
