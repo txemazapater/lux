@@ -42,6 +42,8 @@ Memory ownership:
 - `TLuxControlApplication` does **not** take ownership of the `TLuxAppearance` instance passed to `SetAppearance`.
 - The caller must keep the appearance object alive while the application may paint.
 - Passing `nil` reverts to the builtin appearance.
+- There is no ownership-transfer API and no `OwnsAppearance` flag: destroy only
+  clears the reference.
 
 ### Do active appearance colors work in S1?
 

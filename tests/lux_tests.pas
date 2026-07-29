@@ -77,6 +77,13 @@ type
     function Feed(const Event: TLuxEvent): Boolean;
   end;
 
+  { Tracks whether Destroy ran; used for SetAppearance ownership tests. }
+  TProbeAppearance = class(TLuxAppearance)
+  public
+    FreedFlag: PBoolean;
+    destructor Destroy; override;
+  end;
+
   TResizeProbeApp = class(TLuxApplication)
   public
     ResizeCalls: Integer;
@@ -140,6 +147,13 @@ end;
 function TTestControlApp.Feed(const Event: TLuxEvent): Boolean;
 begin
   Result := HandleEvent(Event);
+end;
+
+destructor TProbeAppearance.Destroy;
+begin
+  if FreedFlag <> nil then
+    FreedFlag^ := True;
+  inherited Destroy;
 end;
 
 procedure TResizeProbeApp.OnResize(AWidth, AHeight: Integer);
@@ -1079,6 +1093,72 @@ begin
   finally
     Scroll.Free;
   end;
+end;
+
+procedure TestSetAppearance;
+var
+  WriterObj: TLuxMemoryTerminalWriter;
+  Writer: ILuxTerminalWriter;
+  Source: ILuxEventSource;
+  App: TTestControlApp;
+  Custom: TLuxAppearance;
+  Probe: TProbeAppearance;
+  Freed: Boolean;
+  FlushBefore: Integer;
+begin
+  LuxSection('S1 SetAppearance');
+
+  WriterObj := TLuxMemoryTerminalWriter.Create;
+  Writer := WriterObj;
+  Source := TFakeEventSource.Create;
+  App := TTestControlApp.Create(Writer, Source, 40, 12);
+  try
+    LuxCheck(App.Appearance = LuxBuiltinAppearance, 'builtin active by default');
+
+    Custom := TLuxAppearance.Create;
+    try
+      App.SetAppearance(Custom);
+      LuxCheck(App.Appearance = Custom, 'custom appearance assigned');
+
+      App.SetAppearance(nil);
+      LuxCheck(App.Appearance = LuxBuiltinAppearance, 'nil restores builtin');
+    finally
+      Custom.Free;
+    end;
+
+    App.ProcessPending;
+    FlushBefore := WriterObj.FlushCount;
+    Custom := TLuxAppearance.Create;
+    try
+      App.SetAppearance(Custom);
+      App.ProcessPending;
+      LuxCheckEqualInt(FlushBefore + 1, WriterObj.FlushCount,
+        'changing appearance invalidates');
+    finally
+      App.SetAppearance(nil);
+      Custom.Free;
+    end;
+  finally
+    App.Free;
+  end;
+
+  Freed := False;
+  Probe := TProbeAppearance.Create;
+  Probe.FreedFlag := @Freed;
+  WriterObj := TLuxMemoryTerminalWriter.Create;
+  Writer := WriterObj;
+  Source := TFakeEventSource.Create;
+  App := TTestControlApp.Create(Writer, Source, 20, 8);
+  try
+    App.SetAppearance(Probe);
+    LuxCheck(App.Appearance = Probe, 'probe appearance assigned');
+  finally
+    App.Free;
+  end;
+  LuxCheck(not Freed, 'destroying app does not free caller appearance');
+  LuxCheckEqualStr('>', Probe.Glyph(lgFocusMarker), 'caller appearance still usable');
+  Probe.Free;
+  LuxCheck(Freed, 'caller frees appearance itself');
 end;
 
 procedure TestControlRenderingAndEvents;
@@ -2532,6 +2612,7 @@ begin
   TestControlFocus;
   TestLayoutEngine;
   TestClientAreaAndAppearance;
+  TestSetAppearance;
   TestStackLayout;
   TestCursorManager;
   TestSplitGeometryAndHit;

@@ -30,7 +30,6 @@ type
     FCaptured: TLuxControl;
     FLastMouseTarget: TLuxControl;
     FAppearance: TLuxAppearance;
-    FOwnsAppearance: Boolean;
     function GetDispatcherTime: Int64;
     procedure HostInvalidate(Sender: TObject);
     procedure ControlWillFree(Sender: TObject);
@@ -93,7 +92,6 @@ begin
   FCaptured := nil;
   FLastMouseTarget := nil;
   FAppearance := LuxBuiltinAppearance;
-  FOwnsAppearance := False;
 end;
 
 procedure TLuxControlApplication.SetAppearance(AValue: TLuxAppearance);
@@ -103,8 +101,7 @@ begin
   if AValue = FAppearance then
     Exit;
 
-  { S1 seam: keep only a reference. Appearance objects are caller-owned. }
-  FOwnsAppearance := False;
+  { S1: caller-owned reference only; never Free the appearance. }
   FAppearance := AValue;
   Invalidate;
 end;
@@ -118,10 +115,7 @@ begin
   FreeAndNil(FDispatcher);
   FreeAndNil(FFocus);
   FreeAndNil(FRoot);
-  if FOwnsAppearance then
-    FreeAndNil(FAppearance)
-  else
-    FAppearance := nil;
+  FAppearance := nil;
   inherited Destroy;
 end;
 
