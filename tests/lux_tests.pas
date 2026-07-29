@@ -29,6 +29,7 @@ uses
   Lux.Layout,
   Lux.Layout.Vertical,
   Lux.Layout.Horizontal,
+  Lux.Layout.Stack,
   Lux.TestHarness;
 
 type
@@ -1092,6 +1093,92 @@ begin
   end;
 end;
 
+procedure TestStackLayout;
+var
+  Root: TLuxRootControl;
+  Stack: TLuxStackLayout;
+  VBox: TLuxVerticalLayout;
+  A, B, C, Hidden: TLuxControl;
+  Hit: TLuxControl;
+  AL, AT, AW, AH: Integer;
+begin
+  LuxSection('Lux.Layout stack');
+
+  Root := TLuxRootControl.Create;
+  try
+    Root.SetBounds(0, 0, 30, 16);
+    Stack := TLuxStackLayout.Create(Root);
+    Stack.Padding := LuxPaddingAll(2);
+
+    A := TLuxControl.Create(Stack);
+    A.PreferredWidth := 3;
+    A.PreferredHeight := 3;
+    A.Expand := 1;
+    B := TLuxControl.Create(Stack);
+    B.MinWidth := 1;
+    B.MinHeight := 1;
+    C := TLuxControl.Create(Stack);
+    Hidden := TLuxControl.Create(Stack);
+    Hidden.Visible := False;
+
+    { Inner = 30-4 x 16-4 = 26x12; Expand/Preferred ignored. }
+    LuxCheckEqualInt(2, A.Left, 'stack A left padded');
+    LuxCheckEqualInt(2, A.Top, 'stack A top padded');
+    LuxCheckEqualInt(26, A.Width, 'stack A fills inner width');
+    LuxCheckEqualInt(12, A.Height, 'stack A fills inner height');
+    LuxCheckEqualInt(A.Left, B.Left, 'stack B same left');
+    LuxCheckEqualInt(A.Top, B.Top, 'stack B same top');
+    LuxCheckEqualInt(A.Width, B.Width, 'stack B same width');
+    LuxCheckEqualInt(A.Height, B.Height, 'stack B same height');
+    LuxCheckEqualInt(A.Left, C.Left, 'stack C same left');
+    LuxCheckEqualInt(A.Width, C.Width, 'stack C same width');
+
+    Hit := Root.HitTestRoot(10, 8);
+    LuxCheck(Hit = C, 'hit frontmost before BringToFront');
+
+    AL := A.Left;
+    AT := A.Top;
+    AW := A.Width;
+    AH := A.Height;
+    Stack.BringToFront(A);
+    LuxCheckEqualInt(AL, A.Left, 'BringToFront keeps bounds left');
+    LuxCheckEqualInt(AT, A.Top, 'BringToFront keeps bounds top');
+    LuxCheckEqualInt(AW, A.Width, 'BringToFront keeps bounds width');
+    LuxCheckEqualInt(AH, A.Height, 'BringToFront keeps bounds height');
+    LuxCheckEqualInt(A.Left, B.Left, 'siblings still share left');
+    LuxCheckEqualInt(A.Width, C.Width, 'siblings still share width');
+
+    Hit := Root.HitTestRoot(10, 8);
+    LuxCheck(Hit = A, 'hit frontmost after BringToFront');
+
+    Stack.SendToBack(A);
+    Hit := Root.HitTestRoot(10, 8);
+    LuxCheck(Hit = C, 'hit frontmost after SendToBack');
+  finally
+    Root.Free;
+  end;
+
+  { Nested smoke: stack under vertical expand. }
+  Root := TLuxRootControl.Create;
+  try
+    Root.SetBounds(0, 0, 20, 10);
+    VBox := TLuxVerticalLayout.Create(Root);
+    VBox.Padding := LuxPaddingAll(0);
+    Stack := TLuxStackLayout.Create(VBox);
+    Stack.Expand := 1;
+    Stack.Padding := LuxPaddingAll(1);
+    A := TLuxControl.Create(Stack);
+    B := TLuxControl.Create(Stack);
+    LuxCheckEqualInt(20, Stack.Width, 'nested stack width');
+    LuxCheckEqualInt(10, Stack.Height, 'nested stack height');
+    LuxCheckEqualInt(1, A.Left, 'nested A padded');
+    LuxCheckEqualInt(18, A.Width, 'nested A inner width');
+    LuxCheckEqualInt(A.Width, B.Width, 'nested siblings match');
+  finally
+    Root.Free;
+  end;
+end;
+
 begin
   WriteLn('LUX portable tests');
   TestVersion;
@@ -1108,6 +1195,7 @@ begin
   TestControlGeometryAndHit;
   TestControlFocus;
   TestLayoutEngine;
+  TestStackLayout;
   TestControlRenderingAndEvents;
   TestControlKeyboardRouting;
   Halt(LuxTestExitCode);

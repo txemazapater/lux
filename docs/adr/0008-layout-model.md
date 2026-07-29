@@ -64,8 +64,12 @@ Height = ClientSize.Height - Padding.Top  - Padding.Bottom
 
 Align/anchors enums, Grid, Splitter, ScrollView, measure/ intrinsic text APIs beyond preferred hints, mouse capture.
 
+### Stack layout (6B.1)
+
+`TLuxStackLayout` extends `TLuxLayoutBox`. Every **visible** child is assigned the same `InnerRect` (padding applies; spacing is unused because children overlap). Expand and Preferred do not affect stack geometry. Z-order remains the child list order already used by containers: paint low→high index, hit-test high→low; `BringToFront` / `SendToBack` reorder that list without changing bounds.
+
 ## Consequences
 
 - Paint, hit-testing and focus keep using `Bounds` / `ContentOffset` / `TLuxPaintContext` unchanged.
 - Existing demos that set bounds manually still work; layout boxes are additive.
-- Later subphases (Stack, Splitter, Grid) extend `TLuxLayoutBox` or add sibling containers without changing ownership.
+- Later subphases (Splitter, Grid) extend `TLuxLayoutBox` or add sibling containers without changing ownership.

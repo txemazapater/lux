@@ -69,5 +69,6 @@ lux_unix_paths() {
   printf '%s\n' \
     "$root/src/platform/unix" \
     "$root/examples/eventloop" \
-    "$root/examples/controls_demo"
+    "$root/examples/controls_demo" \
+    "$root/examples/stack_demo"
 }
