@@ -29,6 +29,7 @@ uses
   Lux.RadioButton,
   Lux.Separator,
   Lux.Toggle,
+  Lux.GroupBox,
   Lux.ControlApplication,
   Lux.Layout,
   Lux.Layout.Vertical,
@@ -2310,6 +2311,106 @@ begin
   end;
 end;
 
+procedure TestGroupBox;
+var
+  App: TTestControlApp;
+  Src: ILuxEventSource;
+  Gb, Nested: TLuxGroupBox;
+  Child: TLuxButton;
+  Cb: TLuxCheckBox;
+  CR: TLuxRect;
+  Surf: TLuxSurface;
+begin
+  LuxSection('Lux.GroupBox');
+  Src := TFakeEventSource.Create;
+  App := TTestControlApp.Create(TLuxMemoryTerminalWriter.Create, Src, 40, 16);
+  try
+    Gb := TLuxGroupBox.Create(App.Root);
+    LuxCheckEqualStr('', Gb.Text, 'default empty title');
+    LuxCheck(not Gb.Focusable, 'groupbox not focusable');
+    LuxCheck(not App.Focus.SetFocus(Gb), 'cannot focus groupbox');
+
+    Gb.Text := 'Prefs';
+    LuxCheck(Gb.PreferredWidth >= Length('Prefs') + 4, 'pref w from title');
+    LuxCheckEqualInt(Length('Prefs'), Length(Gb.Text), 'title stored');
+
+    Gb.Text := 'Prefs';
+    { no-op }
+    Gb.Text := UnicodeString(#$65E5) + ' title';
+    LuxCheck(Length(Gb.Text) = 7, 'unicode title length');
+
+    Gb.Text := '';
+    LuxCheckEqualStr('', Gb.Text, 'empty title ok');
+
+    Gb.SetBounds(0, 0, 20, 8);
+    CR := Gb.ClientRect;
+    LuxCheckEqualInt(1, CR.Left, 'client left');
+    LuxCheckEqualInt(1, CR.Top, 'client top');
+    LuxCheckEqualInt(18, CR.Width, 'client width');
+    LuxCheckEqualInt(6, CR.Height, 'client height');
+
+    { Tiny / zero bounds. }
+    Gb.SetBounds(0, 0, 1, 1);
+    CR := Gb.ClientRect;
+    LuxCheckEqualInt(0, CR.Width, 'tiny client w');
+    LuxCheckEqualInt(0, CR.Height, 'tiny client h');
+    Gb.Render(App.Surface);
+
+    Gb.SetBounds(0, 0, 0, 0);
+    Gb.Render(App.Surface);
+
+    { Child placement relative to client. }
+    Gb.Text := 'Box';
+    Gb.SetBounds(0, 0, 24, 10);
+    Child := TLuxButton.Create(Gb);
+    Child.Text := 'In';
+    Child.SetBounds(0, 0, 6, 1);
+    LuxCheckEqualInt(1, Child.AbsoluteBounds.Left, 'child abs left inset');
+    LuxCheckEqualInt(1, Child.AbsoluteBounds.Top, 'child abs top inset');
+
+    App.Focus.SetFocus(Child);
+    LuxCheck(Child.HasFocus, 'child focusable');
+    App.Feed(LuxEventKey(lkTab, '', [], kaPress));
+
+    { Nested group box. }
+    Nested := TLuxGroupBox.Create(Gb);
+    Nested.Text := 'Inner';
+    Nested.SetBounds(1, 2, 18, 5);
+    Cb := TLuxCheckBox.Create(Nested);
+    Cb.Text := 'Opt';
+    Cb.SetBounds(0, 0, 12, 1);
+    LuxCheckEqualInt(Gb.Left + 1 + Nested.Left + 1,
+      Cb.AbsoluteBounds.Left, 'nested abs left');
+
+    { Disabled group disables descendants effectively. }
+    Gb.Enabled := False;
+    LuxCheck(not Cb.IsEffectivelyEnabled, 'child effectively disabled');
+    LuxCheck(not App.Focus.SetFocus(Cb), 'disabled tree no focus');
+    Gb.Enabled := True;
+    LuxCheck(Cb.IsEffectivelyEnabled, 're-enabled');
+
+    { Title paint. }
+    Gb.Text := 'Title';
+    Gb.SetBounds(0, 0, 20, 6);
+    App.Root.Render(App.Surface);
+    Surf := App.Surface;
+    LuxCheckEqualStr(UnicodeString(WideChar($250C)), Surf.Cells[0, 0].Text,
+      'top-left corner');
+    LuxCheckEqualStr('T', Surf.Cells[2, 0].Text, 'title first char');
+
+    { Clipped long title. }
+    Gb.Text := 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    Gb.SetBounds(0, 0, 10, 4);
+    App.Root.Render(App.Surface);
+
+    { Children preserved after text change. }
+    LuxCheck(Gb.ChildCount >= 2, 'children preserved');
+  finally
+    App.Free;
+    Src := nil;
+  end;
+end;
+
 begin
   WriteLn('LUX portable tests');
   TestVersion;
@@ -2339,6 +2440,7 @@ begin
   TestFormControls;
   TestSeparator;
   TestToggle;
+  TestGroupBox;
   TestControlRenderingAndEvents;
   TestControlKeyboardRouting;
   Halt(LuxTestExitCode);
