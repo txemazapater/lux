@@ -92,7 +92,12 @@ end;
 procedure TLuxControlApplication.ControlWillFree(Sender: TObject);
 begin
   if Sender = FCaptured then
+  begin
+    { During destruction the control is still a valid object, so we can
+      synchronously clear interactive state (split dragging/cursor). }
+    TLuxControl(Sender).MouseCaptureLost;
     FCaptured := nil;
+  end;
   if Sender = FLastMouseTarget then
     FLastMouseTarget := nil;
 end;
@@ -139,6 +144,8 @@ var
 begin
   Old := FCaptured;
   FCaptured := nil;
+  if Old <> nil then
+    Old.MouseCaptureLost;
   UnhookWillFreeIfUnused(Old);
 end;
 
@@ -258,6 +265,18 @@ begin
       begin
         if HandleTab(Event) then
           Exit(True);
+        { While capturing we route Escape to the captured control first so
+          split drag cancellation can work even if the control is not a
+          focus tab stop. }
+        if (Event.Key.Action <> kaRelease) and (Event.Key.Key = lkEscape) and
+          (FCaptured <> nil) then
+        begin
+          Target := FCaptured;
+          Result := Target.HandleEvent(Event);
+          if Result then
+            Exit(True);
+        end;
+
         Target := FFocus.FocusedControl;
         if Target = nil then
           Target := FRoot;

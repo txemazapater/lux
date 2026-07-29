@@ -31,6 +31,7 @@ type
     FSecondPane: TLuxControl;
     FOrientation: TLuxOrientation;
     FRatio: Integer;
+    FDragInitialRatio: Integer;
     FDividerSize: Integer;
     FFirstMinimumSize: Integer;
     FSecondMinimumSize: Integer;
@@ -38,6 +39,7 @@ type
     FDragging: Boolean;
     FDragGrab: Integer;
     FCursorActive: Boolean;
+    FCachedCursorMgr: TLuxCursorManager;
     FLayouting: Boolean;
     procedure SetOrientation(AValue: TLuxOrientation);
     procedure SetRatio(AValue: Integer);
@@ -58,6 +60,7 @@ type
     procedure BeginDrag(AX, AY: Integer);
     procedure UpdateDrag(AX, AY: Integer);
     procedure EndDrag(AX, AY: Integer);
+    procedure StopDrag(ARevertRatio, AApplyLayout: Boolean);
     procedure RequestSplitCursor;
     procedure ClearSplitCursor;
     function CursorManager: TLuxCursorManager;
@@ -75,6 +78,7 @@ type
 
     procedure Render(const Ctx: TLuxPaintContext); override;
     procedure MouseLeave; override;
+    procedure MouseCaptureLost; override;
 
     property FirstPane: TLuxControl read FFirstPane write SetFirstPane;
     property SecondPane: TLuxControl read FSecondPane write SetSecondPane;
@@ -94,6 +98,7 @@ begin
   inherited Create(AParent);
   FOrientation := loVertical;
   FRatio := LuxSplitRatioHalf;
+  FDragInitialRatio := FRatio;
   FDividerSize := 1;
   FFirstMinimumSize := 0;
   FSecondMinimumSize := 0;
@@ -101,6 +106,7 @@ begin
   FDragging := False;
   FDragGrab := 0;
   FCursorActive := False;
+  FCachedCursorMgr := nil;
   FLayouting := False;
   Focusable := False;
 end;
@@ -115,6 +121,9 @@ procedure TLuxSplitContainer.SetOrientation(AValue: TLuxOrientation);
 begin
   if FOrientation = AValue then
     Exit;
+  { Orientation change during drag: cancel deterministically. }
+  if FDragging then
+    StopDrag(False, False);
   FOrientation := AValue;
   ApplyLayout;
   Invalidate;
@@ -324,6 +333,18 @@ begin
     begin
       Dist := DistributableMain(Sz.Width);
       DivSz := EffectiveDividerSize(Sz.Width);
+      if FDragging then
+      begin
+        if DivSz <= 0 then
+          FDragGrab := 0
+        else
+        begin
+          if FDragGrab < 0 then
+            FDragGrab := 0
+          else if FDragGrab > DivSz - 1 then
+            FDragGrab := DivSz - 1;
+        end;
+      end;
       FirstMain := FirstMainFromRatio(Dist);
       SecondMain := Dist - FirstMain;
       if FFirstPane <> nil then
@@ -335,6 +356,18 @@ begin
     begin
       Dist := DistributableMain(Sz.Height);
       DivSz := EffectiveDividerSize(Sz.Height);
+      if FDragging then
+      begin
+        if DivSz <= 0 then
+          FDragGrab := 0
+        else
+        begin
+          if FDragGrab < 0 then
+            FDragGrab := 0
+          else if FDragGrab > DivSz - 1 then
+            FDragGrab := DivSz - 1;
+        end;
+      end;
       FirstMain := FirstMainFromRatio(Dist);
       SecondMain := Dist - FirstMain;
       if FFirstPane <> nil then
@@ -345,6 +378,11 @@ begin
   finally
     FLayouting := False;
   end;
+
+  { While dragging, divider geometry changes must keep the logical cursor
+    position roughly aligned with the divider. }
+  if FDragging then
+    RequestSplitCursor;
 end;
 
 function TLuxSplitContainer.DividerLocalRect: TLuxRect;
@@ -468,6 +506,7 @@ begin
   Mgr := CursorManager;
   if Mgr = nil then
     Exit;
+  FCachedCursorMgr := Mgr;
   DivR := DividerLocalRect;
   Origin := LocalToRoot(LuxPoint(DivR.Left + DivR.Width div 2,
     DivR.Top + DivR.Height div 2));
@@ -485,7 +524,9 @@ var
 begin
   if not FCursorActive then
     Exit;
-  Mgr := CursorManager;
+  Mgr := FCachedCursorMgr;
+  if Mgr = nil then
+    Mgr := CursorManager;
   if Mgr <> nil then
     Mgr.ClearRequest;
   FCursorActive := False;
@@ -515,6 +556,7 @@ var
   DivR: TLuxRect;
   Root: TLuxRootControl;
 begin
+  FDragInitialRatio := FRatio;
   DivR := DividerLocalRect;
   if FOrientation = loVertical then
     FDragGrab := AX - DivR.Left
@@ -577,40 +619,75 @@ begin
   InvalidateDivider;
 end;
 
+procedure TLuxSplitContainer.StopDrag(ARevertRatio, AApplyLayout: Boolean);
+var
+  Root: TLuxRootControl;
+begin
+  if not FDragging then
+    Exit;
+
+  Root := LuxFindRootControl(Self);
+  if ARevertRatio then
+    FRatio := FDragInitialRatio;
+
+  FDragging := False;
+  FHovered := False;
+  ClearSplitCursor;
+
+  if AApplyLayout then
+    ApplyLayout;
+
+  if Root <> nil then
+    Root.RequestReleaseMouse(Self);
+  InvalidateDivider;
+end;
+
 function TLuxSplitContainer.DoHandleEvent(const Event: TLuxEvent): Boolean;
 begin
   Result := False;
-  if Event.Kind <> ekMouse then
-    Exit;
-
-  case Event.Mouse.Action of
-    maPress:
-      if Event.Mouse.Button = mbLeft then
+  case Event.Kind of
+    ekKey:
       begin
-        if LuxRectContainsXY(DividerLocalRect, Event.Mouse.X, Event.Mouse.Y) then
+        if (Event.Key.Action <> kaRelease) and (Event.Key.Key = lkEscape) and
+          FDragging then
         begin
-          BeginDrag(Event.Mouse.X, Event.Mouse.Y);
+          StopDrag(True, True);
           Exit(True);
         end;
       end;
-    maMove:
+    ekMouse:
       begin
-        if FDragging then
-        begin
-          UpdateDrag(Event.Mouse.X, Event.Mouse.Y);
-          Exit(True);
-        end;
-        UpdateHoverFromLocal(Event.Mouse.X, Event.Mouse.Y);
-        if FHovered then
-          Exit(True);
-      end;
-    maRelease:
-      if Event.Mouse.Button = mbLeft then
-      begin
-        if FDragging then
-        begin
-          EndDrag(Event.Mouse.X, Event.Mouse.Y);
-          Exit(True);
+        case Event.Mouse.Action of
+          maPress:
+            if Event.Mouse.Button = mbLeft then
+            begin
+              if LuxRectContainsXY(DividerLocalRect, Event.Mouse.X,
+                Event.Mouse.Y) then
+              begin
+                BeginDrag(Event.Mouse.X, Event.Mouse.Y);
+                Exit(True);
+              end;
+            end;
+          maMove:
+            begin
+              if FDragging then
+              begin
+                UpdateDrag(Event.Mouse.X, Event.Mouse.Y);
+                Exit(True);
+              end;
+              UpdateHoverFromLocal(Event.Mouse.X, Event.Mouse.Y);
+              if FHovered then
+                Exit(True);
+            end;
+          maRelease:
+            if Event.Mouse.Button = mbLeft then
+            begin
+              if FDragging then
+              begin
+                EndDrag(Event.Mouse.X, Event.Mouse.Y);
+                Exit(True);
+              end;
+            end;
         end;
       end;
   end;
@@ -626,6 +703,16 @@ begin
     ClearSplitCursor;
     InvalidateDivider;
   end;
+end;
+
+procedure TLuxSplitContainer.MouseCaptureLost;
+begin
+  if (not FDragging) and (not FCursorActive) then
+    Exit;
+  FDragging := False;
+  FHovered := False;
+  ClearSplitCursor;
+  InvalidateDivider;
 end;
 
 end.

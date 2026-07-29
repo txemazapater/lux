@@ -7,6 +7,7 @@ interface
 
 uses
   SysUtils,
+  Lux.Control,
   Lux.ControlApplication,
   Lux.Panel,
   Lux.Labels,
@@ -50,8 +51,17 @@ function TSplitDemoApp.HandleEvent(const Event: TLuxEvent): Boolean;
 begin
   if (Event.Kind = ekKey) and (Event.Key.Action <> kaRelease) then
   begin
-    if (Event.Key.Key = lkEscape) or
-       ((Event.Key.Key = lkChar) and (Event.Key.Ch = 'q')) then
+    { Allow the split container to consume Escape during drag. }
+    if Event.Key.Key = lkEscape then
+    begin
+      Result := inherited HandleEvent(Event);
+      if Result then
+        Exit(True);
+      RequestQuit;
+      Exit(True);
+    end;
+
+    if (Event.Key.Key = lkChar) and (Event.Key.Ch = 'q') then
     begin
       RequestQuit;
       Exit(True);
@@ -61,11 +71,32 @@ begin
 end;
 
 procedure TSplitDemoApp.RefreshStatus;
+var
+  OuterOri, InnerOri: UnicodeString;
+  CaptName: UnicodeString;
+  Cap: TLuxControl;
 begin
+  if FOuter.Orientation = loVertical then
+    OuterOri := 'V'
+  else
+    OuterOri := 'H';
+  if FInner.Orientation = loVertical then
+    InnerOri := 'V'
+  else
+    InnerOri := 'H';
+  Cap := CapturedControl;
+  if Cap = FOuter then
+    CaptName := 'outer'
+  else if Cap = FInner then
+    CaptName := 'inner'
+  else
+    CaptName := 'none';
+
   FStatus.Text := UnicodeString(Format(
-    'Outer ratio=%d  left=%d  right=%d  |  Inner ratio=%d  drag=%s hover=%s',
-    [FOuter.Ratio, FLeft.Width, FRightHost.Width, FInner.Ratio,
-     BoolToStr(FOuter.Dragging or FInner.Dragging, True),
+    'Outer[%s] ratio=%d  drag=%s  |  Inner[%s] ratio=%d drag=%s  |  captured=%s  |  hover=%s',
+    [OuterOri, FOuter.Ratio, BoolToStr(FOuter.Dragging, True),
+     InnerOri, FInner.Ratio, BoolToStr(FInner.Dragging, True),
+     CaptName,
      BoolToStr(FOuter.Hovered or FInner.Hovered, True)]));
 end;
 
@@ -86,7 +117,7 @@ begin
 
   FHint := TLuxLabel.Create(FMain);
   FHint.Text :=
-    'Split demo — drag dividers. Nested split on the right. Esc/q quit.';
+    'Split demo — drag dividers; Esc cancels drag (Esc/q quit when idle).';
   FHint.Foreground := LuxColorRGB(200, 200, 210);
   FHint.Background := LuxColorRGB(16, 16, 24);
   FHint.PreferredHeight := 1;

@@ -1480,6 +1480,307 @@ begin
   end;
 end;
 
+procedure TestSplitEscapeCancellation;
+var
+  App: TTestControlApp;
+  Src: ILuxEventSource;
+  Split: TLuxSplitContainer;
+  First: TMouseProbe;
+  InitialRatio, MovedRatio: Integer;
+  Handled: Boolean;
+begin
+  LuxSection('Split escape cancellation');
+  Src := TFakeEventSource.Create;
+  App := TTestControlApp.Create(TLuxMemoryTerminalWriter.Create, Src, 40, 20);
+  try
+    App.Cursor.Capabilities := LuxCursorCapsFull;
+    Split := TLuxSplitContainer.Create(App.Root);
+    Split.Orientation := loVertical;
+    Split.Ratio := LuxSplitRatioHalf;
+    Split.DividerSize := 1;
+    Split.FirstMinimumSize := 5;
+    Split.SecondMinimumSize := 5;
+    First := TMouseProbe.Create(Split);
+    TMouseProbe.Create(Split);
+
+    InitialRatio := Split.Ratio;
+
+    LuxCheck(not App.Feed(LuxEventKey(lkEscape, '', [], kaPress)),
+      'escape not consumed without drag');
+
+    { Press on divider to start dragging. }
+    App.Feed(LuxEventMouse(19, 5, mbLeft, maPress, [], 0, False));
+    LuxCheck(Split.Dragging, 'dragging started');
+    LuxCheck(App.CapturedControl = Split, 'capture active');
+    LuxCheck(App.Cursor.Requested.Active, 'cursor requested');
+
+    { Move to change ratio. }
+    App.Feed(LuxEventMouse(28, 5, mbLeft, maMove, [], 0, False));
+    MovedRatio := Split.Ratio;
+    LuxCheck(MovedRatio <> InitialRatio, 'ratio changed during drag');
+
+    { Escape cancels drag and restores initial ratio. }
+    Handled := App.Feed(LuxEventKey(lkEscape, '', [], kaPress));
+    LuxCheck(Handled, 'escape consumed during drag');
+    LuxCheck(not Split.Dragging, 'dragging cleared after escape');
+    LuxCheck(App.CapturedControl = nil, 'capture released after escape');
+    LuxCheck(not App.Cursor.Requested.Active, 'cursor cleared after escape');
+    LuxCheckEqualInt(InitialRatio, Split.Ratio, 'ratio restored after escape');
+
+    { Further mouse movement must not keep resizing the split. }
+    App.Feed(LuxEventMouse(30, 5, mbLeft, maMove, [], 0, False));
+    LuxCheckEqualInt(InitialRatio, Split.Ratio, 'ratio unchanged after cancel');
+
+    { Release event after cancellation is harmless. }
+    App.Feed(LuxEventMouse(30, 5, mbLeft, maRelease, [], 0, False));
+  finally
+    App.Free;
+    Src := nil;
+  end;
+end;
+
+procedure TestSplitCaptureLoss;
+var
+  App: TTestControlApp;
+  Src: ILuxEventSource;
+  SplitHide, SplitDisable, SplitRemoved: TLuxSplitContainer;
+  SplitBack, SplitFront: TLuxSplitContainer;
+  A, B: TMouseProbe;
+  Handled: Boolean;
+begin
+  LuxSection('Split capture loss');
+  Src := TFakeEventSource.Create;
+  App := TTestControlApp.Create(TLuxMemoryTerminalWriter.Create, Src, 40, 20);
+  try
+    App.Cursor.Capabilities := LuxCursorCapsFull;
+
+    { Hidden loses capture safely. }
+    SplitHide := TLuxSplitContainer.Create(App.Root);
+    SplitHide.Orientation := loVertical;
+    SplitHide.Ratio := LuxSplitRatioHalf;
+    SplitHide.DividerSize := 1;
+    SplitHide.FirstMinimumSize := 5;
+    SplitHide.SecondMinimumSize := 5;
+    TMouseProbe.Create(SplitHide);
+    TMouseProbe.Create(SplitHide);
+
+    App.Feed(LuxEventMouse(19, 5, mbLeft, maPress, [], 0, False));
+    LuxCheck(SplitHide.Dragging, 'hidden: dragging starts');
+    LuxCheck(App.CapturedControl = SplitHide, 'hidden: split captured');
+    LuxCheck(App.Cursor.Requested.Active, 'hidden: cursor requested');
+    SplitHide.Visible := False;
+    App.Feed(LuxEventMouse(0, 0, mbLeft, maMove, [], 0, False));
+    LuxCheck(App.CapturedControl = nil, 'hidden: capture cleared');
+    LuxCheck(not SplitHide.Dragging, 'hidden: dragging cleared');
+    LuxCheck(not App.Cursor.Requested.Active, 'hidden: cursor cleared');
+
+    { Disabled loses capture safely. }
+    SplitDisable := TLuxSplitContainer.Create(App.Root);
+    SplitDisable.Orientation := loVertical;
+    SplitDisable.Ratio := LuxSplitRatioHalf;
+    SplitDisable.DividerSize := 1;
+    SplitDisable.FirstMinimumSize := 5;
+    SplitDisable.SecondMinimumSize := 5;
+    TMouseProbe.Create(SplitDisable);
+    TMouseProbe.Create(SplitDisable);
+
+    App.Feed(LuxEventMouse(19, 5, mbLeft, maPress, [], 0, False));
+    LuxCheck(SplitDisable.Dragging, 'disabled: dragging starts');
+    SplitDisable.Enabled := False;
+    App.Feed(LuxEventMouse(0, 0, mbLeft, maMove, [], 0, False));
+    LuxCheck(App.CapturedControl = nil, 'disabled: capture cleared');
+    LuxCheck(not SplitDisable.Dragging, 'disabled: dragging cleared');
+    LuxCheck(not App.Cursor.Requested.Active, 'disabled: cursor cleared');
+
+    { Removed-from-tree loses capture safely (cursor too). }
+    SplitRemoved := TLuxSplitContainer.Create(App.Root);
+    SplitRemoved.Orientation := loVertical;
+    SplitRemoved.Ratio := LuxSplitRatioHalf;
+    SplitRemoved.DividerSize := 1;
+    SplitRemoved.FirstMinimumSize := 5;
+    SplitRemoved.SecondMinimumSize := 5;
+    TMouseProbe.Create(SplitRemoved);
+    TMouseProbe.Create(SplitRemoved);
+
+    App.Feed(LuxEventMouse(19, 5, mbLeft, maPress, [], 0, False));
+    LuxCheck(SplitRemoved.Dragging, 'removed: dragging starts');
+    App.Root.RemoveChild(SplitRemoved);
+    App.Feed(LuxEventMouse(0, 0, mbLeft, maMove, [], 0, False));
+    LuxCheck(App.CapturedControl = nil, 'removed: capture cleared');
+    LuxCheck(not SplitRemoved.Dragging, 'removed: dragging cleared');
+    LuxCheck(not App.Cursor.Requested.Active, 'removed: cursor cleared');
+
+    { Capture transfer between two valid controls clears previous drag. }
+    SplitBack := TLuxSplitContainer.Create(App.Root);
+    SplitBack.Orientation := loVertical;
+    SplitBack.Ratio := LuxSplitRatioHalf;
+    SplitBack.DividerSize := 1;
+    SplitBack.FirstMinimumSize := 5;
+    SplitBack.SecondMinimumSize := 5;
+    TMouseProbe.Create(SplitBack);
+    TMouseProbe.Create(SplitBack);
+
+    { Add the front split after the back split so hit-test prefers it. }
+    SplitFront := TLuxSplitContainer.Create(App.Root);
+    SplitFront.Orientation := loVertical;
+    SplitFront.Ratio := LuxSplitRatioHalf;
+    SplitFront.DividerSize := 1;
+    SplitFront.FirstMinimumSize := 5;
+    SplitFront.SecondMinimumSize := 5;
+    TMouseProbe.Create(SplitFront);
+    TMouseProbe.Create(SplitFront);
+
+    App.Feed(LuxEventMouse(19, 5, mbLeft, maPress, [], 0, False));
+    LuxCheck(SplitFront.Dragging, 'transfer: drag starts on front split');
+    LuxCheck(App.CapturedControl = SplitFront, 'transfer: front captured');
+    LuxCheck(App.Cursor.Requested.Active, 'transfer: cursor requested');
+
+    App.CaptureMouse(SplitBack);
+    LuxCheck(App.CapturedControl = SplitBack, 'transfer: capture moved to back');
+    LuxCheck(not SplitFront.Dragging, 'transfer: front dragging cleared');
+    LuxCheck(not App.Cursor.Requested.Active, 'transfer: cursor cleared after move');
+
+    { Destroy the currently captured split during an active drag. }
+    { Start drag on the currently captured control (SplitBack). }
+    App.Feed(LuxEventMouse(19, 5, mbLeft, maPress, [], 0, False));
+    LuxCheck(SplitBack.Dragging, 'destroy: drag started');
+    App.Cursor.Capabilities := LuxCursorCapsFull; { no-op: keep cursor available }
+    SplitBack.Free;
+    SplitBack := nil;
+
+    LuxCheck(App.CapturedControl = nil, 'destroy: capture cleared');
+    LuxCheck(not App.Cursor.Requested.Active, 'destroy: cursor cleared');
+
+    { Validate Escape does not crash after destroy. }
+    Handled := App.Feed(LuxEventKey(lkEscape, '', [], kaPress));
+  finally
+    { SplitRemoved was removed from the tree, so free it manually. }
+    if SplitRemoved <> nil then
+      SplitRemoved.Free;
+    App.Free;
+    Src := nil;
+  end;
+end;
+
+procedure TestSplitResizeAndOrientationDuringDrag;
+var
+  App: TTestControlApp;
+  Src: ILuxEventSource;
+  Split: TLuxSplitContainer;
+  First, Second: TMouseProbe;
+  InitialRatio, NewRatio: Integer;
+  DivClamp: Integer;
+begin
+  LuxSection('Split resize / orientation during drag');
+  Src := TFakeEventSource.Create;
+  App := TTestControlApp.Create(TLuxMemoryTerminalWriter.Create, Src, 40, 20);
+  try
+    App.Cursor.Capabilities := LuxCursorCapsFull;
+    Split := TLuxSplitContainer.Create(App.Root);
+    Split.Orientation := loVertical;
+    Split.Ratio := LuxSplitRatioHalf;
+    Split.DividerSize := 1;
+    Split.FirstMinimumSize := 5;
+    Split.SecondMinimumSize := 5;
+    First := TMouseProbe.Create(Split);
+    Second := TMouseProbe.Create(Split);
+
+    InitialRatio := Split.Ratio;
+    App.Feed(LuxEventMouse(19, 5, mbLeft, maPress, [], 0, False));
+    LuxCheck(Split.Dragging, 'dragging started');
+
+    { Grow then shrink while dragging. }
+    Split.SetBounds(0, 0, 10, 20);
+    LuxCheck(First.Width >= 0, 'first width non-negative after shrink');
+    LuxCheck(Second.Width >= 0, 'second width non-negative after shrink');
+
+    Split.SetBounds(0, 0, 40, 20);
+    LuxCheck(First.Width >= 0, 'first width non-negative after grow');
+    LuxCheck(Second.Width >= 0, 'second width non-negative after grow');
+
+    { Move to change ratio, then cancel by orientation change. }
+    App.Feed(LuxEventMouse(28, 5, mbLeft, maMove, [], 0, False));
+    NewRatio := Split.Ratio;
+    LuxCheck(NewRatio <> InitialRatio, 'ratio changed before orientation');
+
+    Split.Orientation := loHorizontal;
+    LuxCheck(not Split.Dragging, 'orientation change cancels drag');
+    LuxCheck(App.CapturedControl = nil, 'orientation change releases capture');
+    LuxCheck(not App.Cursor.Requested.Active, 'orientation change clears cursor');
+    LuxCheckEqualInt(NewRatio, Split.Ratio, 'orientation keeps most recent ratio');
+
+    { Release outside container ends drag harmlessly (already not dragging). }
+    App.Feed(LuxEventMouse(200, 200, mbLeft, maRelease, [], 0, False));
+
+    { Start a new drag and release outside divider to ensure robustness. }
+    Split.Orientation := loVertical;
+    App.Feed(LuxEventMouse(First.Width, 5, mbLeft, maPress, [], 0, False));
+    LuxCheck(Split.Dragging, 'dragging started again');
+    DivClamp := Split.DividerSize;
+    if DivClamp > Split.Width then
+      DivClamp := Split.Width;
+
+    App.Feed(LuxEventMouse(-10, -10, mbLeft, maRelease, [], 0, False));
+    LuxCheck(not Split.Dragging, 'release outside ends drag');
+    LuxCheck(App.CapturedControl = nil, 'release outside clears capture');
+    LuxCheck(not App.Cursor.Requested.Active, 'release outside clears cursor request');
+  finally
+    App.Free;
+    Src := nil;
+  end;
+end;
+
+procedure TestSplitPropertyChangesDuringDrag;
+var
+  App: TTestControlApp;
+  Src: ILuxEventSource;
+  Split: TLuxSplitContainer;
+  A, B: TMouseProbe;
+begin
+  LuxSection('Split property changes during drag');
+  Src := TFakeEventSource.Create;
+  App := TTestControlApp.Create(TLuxMemoryTerminalWriter.Create, Src, 40, 20);
+  try
+    App.Cursor.Capabilities := LuxCursorCapsFull;
+
+    Split := TLuxSplitContainer.Create(App.Root);
+    Split.Orientation := loVertical;
+    Split.Ratio := LuxSplitRatioHalf;
+    Split.DividerSize := 1;
+    Split.FirstMinimumSize := 5;
+    Split.SecondMinimumSize := 5;
+    A := TMouseProbe.Create(Split);
+    B := TMouseProbe.Create(Split);
+
+    App.Feed(LuxEventMouse(19, 5, mbLeft, maPress, [], 0, False));
+    LuxCheck(Split.Dragging, 'dragging started');
+    LuxCheck(App.Cursor.Requested.Active, 'cursor requested');
+
+    { Change divider thickness while dragging. }
+    Split.DividerSize := 3;
+    LuxCheck(Split.Dragging, 'still dragging after divider size change');
+    LuxCheck(A.Width >= Split.FirstMinimumSize, 'first min respected');
+    LuxCheck(B.Width >= Split.SecondMinimumSize, 'second min respected');
+    LuxCheck(App.Cursor.Requested.Active, 'cursor request still active');
+
+    { Increase minimums while dragging. }
+    Split.FirstMinimumSize := 15;
+    Split.SecondMinimumSize := 8;
+    LuxCheck(Split.Dragging, 'still dragging after minimum changes');
+    LuxCheck(A.Width >= Split.FirstMinimumSize, 'first min increased respected');
+    LuxCheck(B.Width >= Split.SecondMinimumSize, 'second min increased respected');
+
+    { Release ends drag robustly. }
+    App.Feed(LuxEventMouse(-10, -10, mbLeft, maRelease, [], 0, False));
+    LuxCheck(not Split.Dragging, 'drag ended on release outside');
+    LuxCheck(App.CapturedControl = nil, 'capture cleared after release');
+    LuxCheck(not App.Cursor.Requested.Active, 'cursor request cleared after release outside');
+  finally
+    App.Free;
+    Src := nil;
+  end;
+end;
+
 begin
   WriteLn('LUX portable tests');
   TestVersion;
@@ -1500,6 +1801,10 @@ begin
   TestCursorManager;
   TestSplitGeometryAndHit;
   TestMouseCaptureAndSplitDrag;
+  TestSplitEscapeCancellation;
+  TestSplitCaptureLoss;
+  TestSplitResizeAndOrientationDuringDrag;
+  TestSplitPropertyChangesDuringDrag;
   TestControlRenderingAndEvents;
   TestControlKeyboardRouting;
   Halt(LuxTestExitCode);

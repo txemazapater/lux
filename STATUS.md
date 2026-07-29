@@ -4,26 +4,27 @@ Last updated: 2026-07-29
 
 ## Current phase
 
-**Phase 6B.3 — Split container, mouse capture and drag** — **done** (visual review passed)
+**Phase 6B.4 — Split interaction hardening and closure** — **done**
 
-Phases 0–5, 5.1, 5.2, 6A, and **6B.1–6B.3** are complete. Phase 5.2.1 deferred resize remains experimental.
+Phases 0–5, 5.1, 5.2, 6A, and **6B.1–6B.4** are complete. Phase 5.2.1 deferred resize remains experimental.
 
-## Phase 6B.3 — Split + capture
+## Phase 6B.4 — Split interaction hardening
 
-- `TLuxSplitContainer` (`Lux.Layout.Split`): two panes, internal divider, ratio `0..10000`
-- Generic mouse capture on `TLuxControlApplication`
-- Divider hover/drag + logical cursor requests
-- ADR: `docs/adr/0010-split-container-mouse-capture.md`
-- Demo: `examples/split_demo/`
+- Escape cancels active divider drag and restores the initial ratio
+- Capture loss always clears dragging state and cursor requests
+- Drag remains safe across resize/orientation/property changes; orientation change cancels drag
+- Ratio updates use deterministic integer arithmetic
+- ADR: `docs/adr/0010-split-container-mouse-capture.md` (updated for 6B.4)
+- Demo: `examples/split_demo/` (Escape cancels drag while active)
 
 ## Verified
 
 | Item | Result |
 |------|--------|
 | Host (dev) | Windows x86_64 FPC 3.2.2 |
-| Portable tests | **366 passed** |
+| Portable tests | **426 passed** |
 | `split_demo_windows` | builds |
-| Visual review | **passed** (maintainers) |
+| Visual review | **passed** (6B.3 maintainers) |
 
 ## Commands
 
@@ -34,4 +35,4 @@ powershell -ExecutionPolicy Bypass -File tools\test.ps1
 
 ## Next
 
-Awaiting maintainer decision on **6B.4** polish scope (keyboard resize, focus, appearance, a11y) or other follow-ups.
+Phase **6C** — ScrollView and scrollbars.

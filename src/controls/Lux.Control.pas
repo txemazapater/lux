@@ -107,6 +107,9 @@ type
     function HandleEvent(const Event: TLuxEvent): Boolean;
     { Called by the application when this control stops being the mouse target. }
     procedure MouseLeave; virtual;
+    { Called when the application revokes mouse capture from a still-valid
+      control (not freed). Default does nothing. }
+    procedure MouseCaptureLost; virtual;
 
     function LocalToRoot(const P: TLuxPoint): TLuxPoint;
     function RootToLocal(const P: TLuxPoint): TLuxPoint;
@@ -625,6 +628,10 @@ begin
 end;
 
 procedure TLuxControl.MouseLeave;
+begin
+end;
+
+procedure TLuxControl.MouseCaptureLost;
 begin
 end;
 

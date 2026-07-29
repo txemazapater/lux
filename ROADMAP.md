@@ -178,7 +178,7 @@ Status: **complete**
 
 ### Phase 6B — Stack, cursor, split (incremental)
 
-Status: **in progress** (6B.1–6B.3 done; next = 6B.4 after maintainer tasking)
+Status: **complete** (6B.1–6B.4 done)
 
 Process for every 6B subphase: clean compile, automated tests where useful, a dedicated visual demo, then manual review on real terminals. Prefer small commits. No docking and no Lantern-specific widgets in 6B.
 
@@ -187,7 +187,7 @@ Process for every 6B subphase: clean compile, automated tests where useful, a de
 | **6B.1** | `TLuxStackLayout`: shared client area; z-order / BringToFront; overlay demo. | **done** |
 | **6B.2** | Portable logical cursor manager (request/commit, capabilities). | **done** |
 | **6B.3** | Split container with internal divider, generic mouse capture, drag, cursor integration, tests + interactive demo. | **done** |
-| **6B.4** | Interaction polish after visual review (keyboard resize, focus, step sizes, appearance, a11y). | pending |
+| **6B.4** | Interaction hardening and closure (escape cancel, capture loss, resize/orientation safety). | **done** |
 
 Do not implement docking or Lantern widgets in 6B.
 
@@ -216,4 +216,4 @@ Git support, repository models and editor semantics belong to Lantern, not the L
 
 ## Current priority
 
-Phases **6B.1–6B.3** are complete (visual review passed). Maintainers will define **6B.4** polish tasks next. Phase 5.2.1 deferred resize remains experimental. Do not pull Lantern-specific widgets into the LUX core.
+Phases **6B.1–6B.4** are complete. Phase 5.2.1 deferred resize remains experimental. Next: **6C — ScrollView and scrollbars**. Do not pull Lantern-specific widgets into the LUX core.
