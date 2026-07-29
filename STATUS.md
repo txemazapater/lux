@@ -4,9 +4,9 @@ Last updated: 2026-07-29
 
 ## Current phase
 
-**Phase 6B.3 — Split container, mouse capture and drag** — implemented; awaiting maintainer visual sign-off
+**Phase 6B.3 — Split container, mouse capture and drag** — **done** (visual review passed)
 
-Phases 0–5, 5.1, 5.2, 6A, **6B.1** and **6B.2** are complete (6B.2 visual review passed). Phase 5.2.1 deferred resize remains experimental.
+Phases 0–5, 5.1, 5.2, 6A, and **6B.1–6B.3** are complete. Phase 5.2.1 deferred resize remains experimental.
 
 ## Phase 6B.3 — Split + capture
 
@@ -23,7 +23,7 @@ Phases 0–5, 5.1, 5.2, 6A, **6B.1** and **6B.2** are complete (6B.2 visual revi
 | Host (dev) | Windows x86_64 FPC 3.2.2 |
 | Portable tests | **366 passed** |
 | `split_demo_windows` | builds |
-| Visual review | pending maintainers |
+| Visual review | **passed** (maintainers) |
 
 ## Commands
 
@@ -34,4 +34,4 @@ powershell -ExecutionPolicy Bypass -File tools\test.ps1
 
 ## Next
 
-Maintainer visual review of divider feel, nested splits and cursor feedback. Then **6B.4** interaction polish (keyboard, focus, appearance).
+Awaiting maintainer decision on **6B.4** polish scope (keyboard resize, focus, appearance, a11y) or other follow-ups.
