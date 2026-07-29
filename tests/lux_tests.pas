@@ -40,6 +40,7 @@ uses
   Lux.MouseDispatcher,
   Lux.Cursor,
   Lux.Appearance,
+  Lux.Range,
   Lux.TestHarness;
 
 type
@@ -59,6 +60,13 @@ type
   public
     Count: Integer;
     procedure OnClick(Sender: TObject);
+  end;
+
+  TRangeChangeCounter = class
+  public
+    Count: Integer;
+    LastSender: TObject;
+    procedure OnChange(Sender: TObject);
   end;
 
   TMouseProbe = class(TLuxControl)
@@ -116,6 +124,12 @@ end;
 procedure TClickCounter.OnClick(Sender: TObject);
 begin
   Inc(Count);
+end;
+
+procedure TRangeChangeCounter.OnChange(Sender: TObject);
+begin
+  Inc(Count);
+  LastSender := Sender;
 end;
 
 function TMouseProbe.DoHandleEvent(const Event: TLuxEvent): Boolean;
@@ -1159,6 +1173,109 @@ begin
   LuxCheckEqualStr('>', Probe.Glyph(lgFocusMarker), 'caller appearance still usable');
   Probe.Free;
   LuxCheck(Freed, 'caller frees appearance itself');
+end;
+
+procedure TestRange;
+var
+  R: TLuxRange;
+  Changes: TRangeChangeCounter;
+begin
+  LuxSection('S2 Lux.Range');
+
+  LuxCheckEqualInt(5, LuxClampInt(5, 0, 10), 'clamp mid');
+  LuxCheckEqualInt(0, LuxClampInt(-3, 0, 10), 'clamp low');
+  LuxCheckEqualInt(10, LuxClampInt(20, 0, 10), 'clamp high');
+  LuxCheckEqualInt(3, LuxClampInt(3, 10, 0), 'clamp swapped bounds');
+
+  R := TLuxRange.Create;
+  Changes := TRangeChangeCounter.Create;
+  try
+    LuxCheckEqualInt(0, R.Minimum, 'default min');
+    LuxCheckEqualInt(100, R.Maximum, 'default max');
+    LuxCheckEqualInt(0, R.Value, 'default value');
+    LuxCheckEqualInt(1, R.Step, 'default step');
+    LuxCheckEqualInt(100, R.Span, 'default span');
+    LuxCheck(Abs(R.Ratio) < 1e-9, 'default ratio zero');
+
+    R.OnChange := @Changes.OnChange;
+    R.Value := 40;
+    LuxCheckEqualInt(40, R.Value, 'set value');
+    LuxCheckEqualInt(1, Changes.Count, 'onchange once');
+    LuxCheck(Changes.LastSender = R, 'onchange sender');
+
+    R.Value := 40;
+    LuxCheckEqualInt(1, Changes.Count, 'no onchange on no-op');
+
+    R.Value := 500;
+    LuxCheckEqualInt(100, R.Value, 'value clamped to max');
+    LuxCheckEqualInt(2, Changes.Count, 'clamp notifies');
+
+    R.Value := -10;
+    LuxCheckEqualInt(0, R.Value, 'value clamped to min');
+    LuxCheckEqualInt(3, Changes.Count, 'min clamp notifies');
+
+    R.Minimum := 20;
+    LuxCheckEqualInt(20, R.Minimum, 'min raised');
+    LuxCheckEqualInt(20, R.Value, 'value reclamped by min');
+    LuxCheckEqualInt(4, Changes.Count, 'bound reclamp notifies');
+
+    R.Minimum := 20;
+    LuxCheckEqualInt(4, Changes.Count, 'no notify when min unchanged');
+
+    R.Maximum := 10;
+    LuxCheckEqualInt(10, R.Maximum, 'max lowered');
+    LuxCheckEqualInt(10, R.Minimum, 'min follows max when inverted');
+    LuxCheckEqualInt(10, R.Value, 'value follows collapsed span');
+    LuxCheckEqualInt(5, Changes.Count, 'collapse notifies');
+
+    R.Minimum := 0;
+    R.Maximum := 10;
+    R.Value := 5;
+    Changes.Count := 0;
+    R.Step := 3;
+    R.Increment;
+    LuxCheckEqualInt(8, R.Value, 'increment by step');
+    R.Increment;
+    LuxCheckEqualInt(10, R.Value, 'increment clamps');
+    R.Decrement;
+    LuxCheckEqualInt(7, R.Value, 'decrement by step');
+    LuxCheckEqualInt(3, Changes.Count, 'inc/dec notify');
+
+    R.Step := 0;
+    LuxCheckEqualInt(1, R.Step, 'step floor is 1');
+
+    R.Minimum := 0;
+    R.Maximum := 100;
+    R.Value := 0;
+    Changes.Count := 0;
+    R.SetRatio(0.25);
+    LuxCheckEqualInt(25, R.Value, 'setratio quarter');
+    LuxCheck(Abs(R.Ratio - 0.25) < 1e-9, 'ratio quarter');
+    R.SetRatio(1.5);
+    LuxCheckEqualInt(100, R.Value, 'setratio clamps high');
+    R.SetRatio(-1.0);
+    LuxCheckEqualInt(0, R.Value, 'setratio clamps low');
+
+    R.Minimum := 50;
+    R.Maximum := 50;
+    LuxCheckEqualInt(0, R.Span, 'zero span');
+    LuxCheck(Abs(R.Ratio) < 1e-9, 'zero span ratio');
+    R.SetRatio(0.7);
+    LuxCheckEqualInt(50, R.Value, 'zero span setratio keeps value');
+  finally
+    Changes.Free;
+    R.Free;
+  end;
+
+  R := TLuxRange.Create(10, 5, 100, -2);
+  try
+    LuxCheckEqualInt(10, R.Minimum, 'ctor keeps min');
+    LuxCheckEqualInt(10, R.Maximum, 'ctor raises max to min');
+    LuxCheckEqualInt(10, R.Value, 'ctor clamps value');
+    LuxCheckEqualInt(1, R.Step, 'ctor floors step');
+  finally
+    R.Free;
+  end;
 end;
 
 procedure TestControlRenderingAndEvents;
@@ -2613,6 +2730,7 @@ begin
   TestLayoutEngine;
   TestClientAreaAndAppearance;
   TestSetAppearance;
+  TestRange;
   TestStackLayout;
   TestCursorManager;
   TestSplitGeometryAndHit;

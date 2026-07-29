@@ -301,11 +301,12 @@ Git support, repository models and editor semantics belong to the consumer appli
 
 ## Current priority
 
-**S1 complete.** Next: **S2 — Range model**, then ProgressBar/Slider on Range.
+**S2 complete.** Next: **S3 — ProgressBar + Slider** on Range.
 
 - Record: [`docs/architecture-review-2026-07.md`](docs/architecture-review-2026-07.md)
 - S1 ADR: [`docs/adr/0015-client-area-appearance-seam.md`](docs/adr/0015-client-area-appearance-seam.md)
-- Phases **0–6D** + **S1** are the implemented baseline.
-- **Do not start old 6E (ProgressBar/Slider)** without a Range model.
+- S2 ADR: [`docs/adr/0016-range-model.md`](docs/adr/0016-range-model.md)
+- Phases **0–6D** + **S1** + **S2** are the implemented baseline.
+- ProgressBar/Slider (old 6E / S3) must use `TLuxRange`.
 
 Phase 5.2.1 deferred resize remains experimental. Do not pull consumer-application (Lantern) widgets into the LUX core.

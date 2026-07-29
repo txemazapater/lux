@@ -29,7 +29,7 @@ Circular dependencies are forbidden. Surfaces must not depend on terminal or pla
 
 ## Portable core
 
-The portable core contains geometry, colours, text styles, cells, surfaces and frame comparison. It must compile and run in tests without opening a terminal.
+The portable core contains geometry, colours, text styles, cells, surfaces, frame comparison, and shared models such as `TLuxRange` (`docs/adr/0016-range-model.md`). It must compile and run in tests without opening a terminal.
 
 ## Virtual surface
 
