@@ -189,7 +189,7 @@ begin
   end;
 
   if (Flags and DOUBLE_CLICK) <> 0 then
-    Action := maDoubleClick
+    Action := maPress
   else if Flags = 0 then
   begin
     { Button press or release — infer from button state bits. }

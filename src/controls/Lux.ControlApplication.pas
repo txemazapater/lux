@@ -16,7 +16,8 @@ uses
   Lux.Surface,
   Lux.Control,
   Lux.ControlContainer,
-  Lux.FocusManager;
+  Lux.FocusManager,
+  Lux.MouseDispatcher;
 
 type
   { Owns a root control and focus manager. Routes events into the tree. }
@@ -24,8 +25,10 @@ type
   private
     FRoot: TLuxRootControl;
     FFocus: TLuxFocusManager;
+    FDispatcher: TLuxMouseDispatcher;
     FCaptured: TLuxControl;
     FLastMouseTarget: TLuxControl;
+    function GetDispatcherTime: Int64;
     procedure HostInvalidate(Sender: TObject);
     procedure ControlWillFree(Sender: TObject);
     procedure HookWillFree(AControl: TLuxControl);
@@ -55,9 +58,15 @@ type
 
     property Root: TLuxRootControl read FRoot;
     property Focus: TLuxFocusManager read FFocus;
+    property Dispatcher: TLuxMouseDispatcher read FDispatcher;
   end;
 
 implementation
+
+function TLuxControlApplication.GetDispatcherTime: Int64;
+begin
+  Result := ClockNowMs;
+end;
 
 constructor TLuxControlApplication.Create(AWriter: ILuxTerminalWriter;
   ASource: ILuxEventSource; AWidth, AHeight: Integer; AClock: ILuxClock);
@@ -69,6 +78,7 @@ begin
   FRoot.SetInteractionHandlers(@CaptureMouse, @ReleaseMouse, @QueryCaptured,
     @QueryCursor);
   FFocus := TLuxFocusManager.Create(FRoot);
+  FDispatcher := TLuxMouseDispatcher.Create(FRoot, @GetDispatcherTime);
   FCaptured := nil;
   FLastMouseTarget := nil;
 end;
@@ -79,6 +89,7 @@ begin
   SetMouseTarget(nil);
   if FFocus <> nil then
     FFocus.ClearFocus;
+  FreeAndNil(FDispatcher);
   FreeAndNil(FFocus);
   FreeAndNil(FRoot);
   inherited Destroy;
@@ -91,10 +102,10 @@ end;
 
 procedure TLuxControlApplication.ControlWillFree(Sender: TObject);
 begin
+  if FDispatcher <> nil then
+    FDispatcher.ControlInvalidated(TLuxControl(Sender));
   if Sender = FCaptured then
   begin
-    { During destruction the control is still a valid object, so we can
-      synchronously clear interactive state (split dragging/cursor). }
     TLuxControl(Sender).MouseCaptureLost;
     FCaptured := nil;
   end;
@@ -284,6 +295,8 @@ begin
       end;
     ekMouse:
       begin
+        FDispatcher.HandleMouseEvent(Event.Mouse);
+
         if CaptureStillValid(FCaptured) then
           Target := FCaptured
         else
@@ -295,7 +308,8 @@ begin
           Target.Focusable and Target.IsEffectivelyEnabled then
           FFocus.SetFocus(Target);
         LocalEvent := TranslateMouseToLocal(Target, Event);
-        Result := Target.HandleEvent(LocalEvent);
+        Target.HandleEvent(LocalEvent);
+        Result := True;
         if (Event.Mouse.Action = maRelease) and (Event.Mouse.Button = mbLeft) then
           ReleaseMouse(FCaptured);
       end;

@@ -70,6 +70,7 @@ type
     procedure PaintIfNeeded;
   protected
     function CombinedWaitTimeoutMs: Integer;
+    function ClockNowMs: TLuxTimeMs;
     { Return True if the event was fully handled. }
     function HandleEvent(const Event: TLuxEvent): Boolean; virtual;
     procedure Update; virtual;
@@ -209,6 +210,11 @@ begin
   if Best > High(Integer) then
     Exit(High(Integer));
   Result := Integer(Best);
+end;
+
+function TLuxApplication.ClockNowMs: TLuxTimeMs;
+begin
+  Result := FClock.NowMs;
 end;
 
 procedure TLuxApplication.ClearPendingResize;

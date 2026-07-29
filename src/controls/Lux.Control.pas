@@ -36,6 +36,36 @@ type
     DisabledBackground: TLuxColor;
   end;
 
+  { Semantic mouse event delivered to controls by the dispatcher.
+    Coordinates are in the target control's local space. }
+  TLuxSemanticMouseEvent = record
+    X: Integer;
+    Y: Integer;
+    Button: TLuxMouseButton;
+    Modifiers: TLuxKeyModifiers;
+  end;
+
+  { Drag event with start position and accumulated deltas. }
+  TLuxDragEvent = record
+    X: Integer;
+    Y: Integer;
+    StartX: Integer;
+    StartY: Integer;
+    DeltaX: Integer;
+    DeltaY: Integer;
+    Button: TLuxMouseButton;
+    Modifiers: TLuxKeyModifiers;
+  end;
+
+  { Wheel event with normalized deltas. }
+  TLuxWheelEvent = record
+    X: Integer;
+    Y: Integer;
+    Delta: Integer;
+    Horizontal: Boolean;
+    Modifiers: TLuxKeyModifiers;
+  end;
+
   TLuxControl = class
   private
     FParent: TLuxControl;
@@ -110,6 +140,20 @@ type
     { Called when the application revokes mouse capture from a still-valid
       control (not freed). Default does nothing. }
     procedure MouseCaptureLost; virtual;
+
+    { Semantic mouse callbacks invoked by the dispatcher. }
+    procedure SemanticMouseEnter(const Event: TLuxSemanticMouseEvent); virtual;
+    procedure SemanticMouseMove(const Event: TLuxSemanticMouseEvent); virtual;
+    procedure SemanticMouseLeave; virtual;
+    procedure SemanticMouseDown(const Event: TLuxSemanticMouseEvent); virtual;
+    procedure SemanticMouseUp(const Event: TLuxSemanticMouseEvent); virtual;
+    procedure SemanticClick(const Event: TLuxSemanticMouseEvent); virtual;
+    procedure SemanticDoubleClick(const Event: TLuxSemanticMouseEvent); virtual;
+    procedure SemanticDragBegin(const Event: TLuxDragEvent); virtual;
+    procedure SemanticDragMove(const Event: TLuxDragEvent); virtual;
+    procedure SemanticDragEnd(const Event: TLuxDragEvent); virtual;
+    procedure SemanticDragCancel; virtual;
+    function SemanticMouseWheel(const Event: TLuxWheelEvent): Boolean; virtual;
 
     function LocalToRoot(const P: TLuxPoint): TLuxPoint;
     function RootToLocal(const P: TLuxPoint): TLuxPoint;
@@ -633,6 +677,55 @@ end;
 
 procedure TLuxControl.MouseCaptureLost;
 begin
+end;
+
+procedure TLuxControl.SemanticMouseEnter(const Event: TLuxSemanticMouseEvent);
+begin
+end;
+
+procedure TLuxControl.SemanticMouseMove(const Event: TLuxSemanticMouseEvent);
+begin
+end;
+
+procedure TLuxControl.SemanticMouseLeave;
+begin
+end;
+
+procedure TLuxControl.SemanticMouseDown(const Event: TLuxSemanticMouseEvent);
+begin
+end;
+
+procedure TLuxControl.SemanticMouseUp(const Event: TLuxSemanticMouseEvent);
+begin
+end;
+
+procedure TLuxControl.SemanticClick(const Event: TLuxSemanticMouseEvent);
+begin
+end;
+
+procedure TLuxControl.SemanticDoubleClick(const Event: TLuxSemanticMouseEvent);
+begin
+end;
+
+procedure TLuxControl.SemanticDragBegin(const Event: TLuxDragEvent);
+begin
+end;
+
+procedure TLuxControl.SemanticDragMove(const Event: TLuxDragEvent);
+begin
+end;
+
+procedure TLuxControl.SemanticDragEnd(const Event: TLuxDragEvent);
+begin
+end;
+
+procedure TLuxControl.SemanticDragCancel;
+begin
+end;
+
+function TLuxControl.SemanticMouseWheel(const Event: TLuxWheelEvent): Boolean;
+begin
+  Result := False;
 end;
 
 end.

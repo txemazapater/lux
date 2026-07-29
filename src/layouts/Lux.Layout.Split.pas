@@ -80,6 +80,15 @@ type
     procedure MouseLeave; override;
     procedure MouseCaptureLost; override;
 
+    procedure SemanticMouseEnter(const Event: TLuxSemanticMouseEvent); override;
+    procedure SemanticMouseMove(const Event: TLuxSemanticMouseEvent); override;
+    procedure SemanticMouseLeave; override;
+    procedure SemanticMouseDown(const Event: TLuxSemanticMouseEvent); override;
+    procedure SemanticDragBegin(const Event: TLuxDragEvent); override;
+    procedure SemanticDragMove(const Event: TLuxDragEvent); override;
+    procedure SemanticDragEnd(const Event: TLuxDragEvent); override;
+    procedure SemanticDragCancel; override;
+
     property FirstPane: TLuxControl read FFirstPane write SetFirstPane;
     property SecondPane: TLuxControl read FSecondPane write SetSecondPane;
     property Orientation: TLuxOrientation read FOrientation write SetOrientation;
@@ -645,52 +654,87 @@ end;
 function TLuxSplitContainer.DoHandleEvent(const Event: TLuxEvent): Boolean;
 begin
   Result := False;
-  case Event.Kind of
-    ekKey:
-      begin
-        if (Event.Key.Action <> kaRelease) and (Event.Key.Key = lkEscape) and
-          FDragging then
-        begin
-          StopDrag(True, True);
-          Exit(True);
-        end;
-      end;
-    ekMouse:
-      begin
-        case Event.Mouse.Action of
-          maPress:
-            if Event.Mouse.Button = mbLeft then
-            begin
-              if LuxRectContainsXY(DividerLocalRect, Event.Mouse.X,
-                Event.Mouse.Y) then
-              begin
-                BeginDrag(Event.Mouse.X, Event.Mouse.Y);
-                Exit(True);
-              end;
-            end;
-          maMove:
-            begin
-              if FDragging then
-              begin
-                UpdateDrag(Event.Mouse.X, Event.Mouse.Y);
-                Exit(True);
-              end;
-              UpdateHoverFromLocal(Event.Mouse.X, Event.Mouse.Y);
-              if FHovered then
-                Exit(True);
-            end;
-          maRelease:
-            if Event.Mouse.Button = mbLeft then
-            begin
-              if FDragging then
-              begin
-                EndDrag(Event.Mouse.X, Event.Mouse.Y);
-                Exit(True);
-              end;
-            end;
-        end;
-      end;
+  if Event.Kind = ekKey then
+  begin
+    if (Event.Key.Action <> kaRelease) and (Event.Key.Key = lkEscape) and
+      FDragging then
+    begin
+      StopDrag(True, True);
+      Exit(True);
+    end;
   end;
+end;
+
+procedure TLuxSplitContainer.SemanticMouseEnter(const Event: TLuxSemanticMouseEvent);
+begin
+  UpdateHoverFromLocal(Event.X, Event.Y);
+end;
+
+procedure TLuxSplitContainer.SemanticMouseMove(const Event: TLuxSemanticMouseEvent);
+begin
+  if not FDragging then
+    UpdateHoverFromLocal(Event.X, Event.Y);
+end;
+
+procedure TLuxSplitContainer.SemanticMouseLeave;
+begin
+  if FDragging then
+    Exit;
+  if FHovered then
+  begin
+    FHovered := False;
+    ClearSplitCursor;
+    InvalidateDivider;
+  end;
+end;
+
+procedure TLuxSplitContainer.SemanticMouseDown(const Event: TLuxSemanticMouseEvent);
+begin
+  if Event.Button = mbLeft then
+    UpdateHoverFromLocal(Event.X, Event.Y);
+end;
+
+procedure TLuxSplitContainer.SemanticDragBegin(const Event: TLuxDragEvent);
+var
+  DivR: TLuxRect;
+  Root: TLuxRootControl;
+begin
+  if Event.Button <> mbLeft then
+    Exit;
+  DivR := DividerLocalRect;
+  if not LuxRectContainsXY(DivR, Event.StartX, Event.StartY) then
+    Exit;
+  FDragInitialRatio := FRatio;
+  if FOrientation = loVertical then
+    FDragGrab := Event.StartX - DivR.Left
+  else
+    FDragGrab := Event.StartY - DivR.Top;
+  FDragging := True;
+  FHovered := True;
+  Root := LuxFindRootControl(Self);
+  if Root <> nil then
+    Root.RequestCaptureMouse(Self);
+  RequestSplitCursor;
+  InvalidateDivider;
+  UpdateDrag(Event.X, Event.Y);
+end;
+
+procedure TLuxSplitContainer.SemanticDragMove(const Event: TLuxDragEvent);
+begin
+  if FDragging then
+    UpdateDrag(Event.X, Event.Y);
+end;
+
+procedure TLuxSplitContainer.SemanticDragEnd(const Event: TLuxDragEvent);
+begin
+  if FDragging then
+    EndDrag(Event.X, Event.Y);
+end;
+
+procedure TLuxSplitContainer.SemanticDragCancel;
+begin
+  if FDragging then
+    StopDrag(True, True);
 end;
 
 procedure TLuxSplitContainer.MouseLeave;

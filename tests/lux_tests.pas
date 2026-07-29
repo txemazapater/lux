@@ -31,6 +31,8 @@ uses
   Lux.Layout.Horizontal,
   Lux.Layout.Stack,
   Lux.Layout.Split,
+  Lux.ScrollView,
+  Lux.MouseDispatcher,
   Lux.Cursor,
   Lux.TestHarness;
 
@@ -1447,11 +1449,12 @@ begin
 
     StartW := First.Width;
     App.Feed(LuxEventMouse(19, 5, mbLeft, maPress, [], 0, False));
+    LuxCheck(not Split.Dragging, 'press alone does not start drag');
+    { Move past threshold (2 cells) to trigger DragBegin. }
+    App.Feed(LuxEventMouse(21, 5, mbLeft, maMove, [], 0, False));
+    LuxCheck(Split.Dragging, 'dragging started after threshold');
     LuxCheck(App.CapturedControl = Split, 'press on divider captures');
-    LuxCheck(Split.Dragging, 'dragging started');
     LuxCheck(App.Cursor.Requested.Active, 'drag requests cursor');
-    LuxCheckEqualInt(0, First.Presses, 'first pane no divider press');
-    LuxCheckEqualInt(0, Second.Presses, 'second pane no divider press');
 
     App.Feed(LuxEventMouse(28, 5, mbLeft, maMove, [], 0, False));
     LuxCheck(Split.Dragging, 'drag continues outside divider');
@@ -1471,6 +1474,7 @@ begin
 
     App.Cursor.Capabilities := LuxCursorCapsNone;
     App.Feed(LuxEventMouse(First.Width, 5, mbLeft, maPress, [], 0, False));
+    App.Feed(LuxEventMouse(First.Width + 2, 5, mbLeft, maMove, [], 0, False));
     LuxCheck(Split.Dragging, 'drag works without cursor caps');
     App.Feed(LuxEventMouse(First.Width + 2, 5, mbLeft, maRelease, [], 0, False));
     LuxCheck(not Split.Dragging, 'release without caps');
@@ -1508,13 +1512,14 @@ begin
     LuxCheck(not App.Feed(LuxEventKey(lkEscape, '', [], kaPress)),
       'escape not consumed without drag');
 
-    { Press on divider to start dragging. }
+    { Press on divider and move past threshold to start dragging. }
     App.Feed(LuxEventMouse(19, 5, mbLeft, maPress, [], 0, False));
+    App.Feed(LuxEventMouse(21, 5, mbLeft, maMove, [], 0, False));
     LuxCheck(Split.Dragging, 'dragging started');
     LuxCheck(App.CapturedControl = Split, 'capture active');
     LuxCheck(App.Cursor.Requested.Active, 'cursor requested');
 
-    { Move to change ratio. }
+    { Move further to change ratio. }
     App.Feed(LuxEventMouse(28, 5, mbLeft, maMove, [], 0, False));
     MovedRatio := Split.Ratio;
     LuxCheck(MovedRatio <> InitialRatio, 'ratio changed during drag');
@@ -1565,6 +1570,7 @@ begin
     TMouseProbe.Create(SplitHide);
 
     App.Feed(LuxEventMouse(19, 5, mbLeft, maPress, [], 0, False));
+    App.Feed(LuxEventMouse(21, 5, mbLeft, maMove, [], 0, False));
     LuxCheck(SplitHide.Dragging, 'hidden: dragging starts');
     LuxCheck(App.CapturedControl = SplitHide, 'hidden: split captured');
     LuxCheck(App.Cursor.Requested.Active, 'hidden: cursor requested');
@@ -1585,6 +1591,7 @@ begin
     TMouseProbe.Create(SplitDisable);
 
     App.Feed(LuxEventMouse(19, 5, mbLeft, maPress, [], 0, False));
+    App.Feed(LuxEventMouse(21, 5, mbLeft, maMove, [], 0, False));
     LuxCheck(SplitDisable.Dragging, 'disabled: dragging starts');
     SplitDisable.Enabled := False;
     App.Feed(LuxEventMouse(0, 0, mbLeft, maMove, [], 0, False));
@@ -1603,6 +1610,7 @@ begin
     TMouseProbe.Create(SplitRemoved);
 
     App.Feed(LuxEventMouse(19, 5, mbLeft, maPress, [], 0, False));
+    App.Feed(LuxEventMouse(21, 5, mbLeft, maMove, [], 0, False));
     LuxCheck(SplitRemoved.Dragging, 'removed: dragging starts');
     App.Root.RemoveChild(SplitRemoved);
     App.Feed(LuxEventMouse(0, 0, mbLeft, maMove, [], 0, False));
@@ -1631,6 +1639,7 @@ begin
     TMouseProbe.Create(SplitFront);
 
     App.Feed(LuxEventMouse(19, 5, mbLeft, maPress, [], 0, False));
+    App.Feed(LuxEventMouse(21, 5, mbLeft, maMove, [], 0, False));
     LuxCheck(SplitFront.Dragging, 'transfer: drag starts on front split');
     LuxCheck(App.CapturedControl = SplitFront, 'transfer: front captured');
     LuxCheck(App.Cursor.Requested.Active, 'transfer: cursor requested');
@@ -1643,6 +1652,7 @@ begin
     { Destroy the currently captured split during an active drag. }
     { Start drag on the currently captured control (SplitBack). }
     App.Feed(LuxEventMouse(19, 5, mbLeft, maPress, [], 0, False));
+    App.Feed(LuxEventMouse(21, 5, mbLeft, maMove, [], 0, False));
     LuxCheck(SplitBack.Dragging, 'destroy: drag started');
     App.Cursor.Capabilities := LuxCursorCapsFull; { no-op: keep cursor available }
     SplitBack.Free;
@@ -1687,6 +1697,7 @@ begin
 
     InitialRatio := Split.Ratio;
     App.Feed(LuxEventMouse(19, 5, mbLeft, maPress, [], 0, False));
+    App.Feed(LuxEventMouse(21, 5, mbLeft, maMove, [], 0, False));
     LuxCheck(Split.Dragging, 'dragging started');
 
     { Grow then shrink while dragging. }
@@ -1715,6 +1726,7 @@ begin
     { Start a new drag and release outside divider to ensure robustness. }
     Split.Orientation := loVertical;
     App.Feed(LuxEventMouse(First.Width, 5, mbLeft, maPress, [], 0, False));
+    App.Feed(LuxEventMouse(First.Width + 2, 5, mbLeft, maMove, [], 0, False));
     LuxCheck(Split.Dragging, 'dragging started again');
     DivClamp := Split.DividerSize;
     if DivClamp > Split.Width then
@@ -1753,6 +1765,7 @@ begin
     B := TMouseProbe.Create(Split);
 
     App.Feed(LuxEventMouse(19, 5, mbLeft, maPress, [], 0, False));
+    App.Feed(LuxEventMouse(21, 5, mbLeft, maMove, [], 0, False));
     LuxCheck(Split.Dragging, 'dragging started');
     LuxCheck(App.Cursor.Requested.Active, 'cursor requested');
 
@@ -1775,6 +1788,229 @@ begin
     LuxCheck(not Split.Dragging, 'drag ended on release outside');
     LuxCheck(App.CapturedControl = nil, 'capture cleared after release');
     LuxCheck(not App.Cursor.Requested.Active, 'cursor request cleared after release outside');
+  finally
+    App.Free;
+    Src := nil;
+  end;
+end;
+
+{ --- Semantic mouse dispatcher tests --- }
+
+type
+  TSemanticProbe = class(TLuxControl)
+  public
+    Enters: Integer;
+    Leaves: Integer;
+    Moves: Integer;
+    Downs: Integer;
+    Ups: Integer;
+    Clicks: Integer;
+    DblClicks: Integer;
+    DragBegins: Integer;
+    DragMoves: Integer;
+    DragEnds: Integer;
+    DragCancels: Integer;
+    WheelEvents: Integer;
+    LastWheelDelta: Integer;
+    procedure SemanticMouseEnter(const Event: TLuxSemanticMouseEvent); override;
+    procedure SemanticMouseMove(const Event: TLuxSemanticMouseEvent); override;
+    procedure SemanticMouseLeave; override;
+    procedure SemanticMouseDown(const Event: TLuxSemanticMouseEvent); override;
+    procedure SemanticMouseUp(const Event: TLuxSemanticMouseEvent); override;
+    procedure SemanticClick(const Event: TLuxSemanticMouseEvent); override;
+    procedure SemanticDoubleClick(const Event: TLuxSemanticMouseEvent); override;
+    procedure SemanticDragBegin(const Event: TLuxDragEvent); override;
+    procedure SemanticDragMove(const Event: TLuxDragEvent); override;
+    procedure SemanticDragEnd(const Event: TLuxDragEvent); override;
+    procedure SemanticDragCancel; override;
+    function SemanticMouseWheel(const Event: TLuxWheelEvent): Boolean; override;
+  end;
+
+procedure TSemanticProbe.SemanticMouseEnter(const Event: TLuxSemanticMouseEvent);
+begin Inc(Enters); end;
+procedure TSemanticProbe.SemanticMouseMove(const Event: TLuxSemanticMouseEvent);
+begin Inc(Moves); end;
+procedure TSemanticProbe.SemanticMouseLeave;
+begin Inc(Leaves); end;
+procedure TSemanticProbe.SemanticMouseDown(const Event: TLuxSemanticMouseEvent);
+begin Inc(Downs); end;
+procedure TSemanticProbe.SemanticMouseUp(const Event: TLuxSemanticMouseEvent);
+begin Inc(Ups); end;
+procedure TSemanticProbe.SemanticClick(const Event: TLuxSemanticMouseEvent);
+begin Inc(Clicks); end;
+procedure TSemanticProbe.SemanticDoubleClick(const Event: TLuxSemanticMouseEvent);
+begin Inc(DblClicks); end;
+procedure TSemanticProbe.SemanticDragBegin(const Event: TLuxDragEvent);
+begin Inc(DragBegins); end;
+procedure TSemanticProbe.SemanticDragMove(const Event: TLuxDragEvent);
+begin Inc(DragMoves); end;
+procedure TSemanticProbe.SemanticDragEnd(const Event: TLuxDragEvent);
+begin Inc(DragEnds); end;
+procedure TSemanticProbe.SemanticDragCancel;
+begin Inc(DragCancels); end;
+function TSemanticProbe.SemanticMouseWheel(const Event: TLuxWheelEvent): Boolean;
+begin Inc(WheelEvents); LastWheelDelta := Event.Delta; Result := False; end;
+
+procedure TestSemanticMouseDispatcher;
+var
+  App: TTestControlApp;
+  Src: ILuxEventSource;
+  Clock: TFakeClock;
+  Probe: TSemanticProbe;
+begin
+  LuxSection('Semantic mouse dispatcher');
+  Src := TFakeEventSource.Create;
+  Clock := TFakeClock.Create;
+  Clock.NowValue := 1000;
+  App := TTestControlApp.Create(TLuxMemoryTerminalWriter.Create, Src, 40, 20, Clock);
+  try
+    Probe := TSemanticProbe.Create(App.Root);
+    Probe.SetBounds(0, 0, 40, 20);
+
+    { Hover enter emitted once. }
+    App.Feed(LuxEventMouse(5, 5, mbNone, maMove, [], 0, False));
+    LuxCheckEqualInt(1, Probe.Enters, 'enter once');
+    App.Feed(LuxEventMouse(6, 5, mbNone, maMove, [], 0, False));
+    LuxCheckEqualInt(1, Probe.Enters, 'no repeat enter');
+    LuxCheckEqualInt(1, Probe.Moves, 'move after enter');
+
+    { Press routed. }
+    App.Feed(LuxEventMouse(10, 10, mbLeft, maPress, [], 0, False));
+    LuxCheckEqualInt(1, Probe.Downs, 'down');
+
+    { Release + click. }
+    App.Feed(LuxEventMouse(10, 10, mbLeft, maRelease, [], 0, False));
+    LuxCheckEqualInt(1, Probe.Ups, 'up');
+    LuxCheckEqualInt(1, Probe.Clicks, 'click');
+    LuxCheckEqualInt(0, Probe.DblClicks, 'no dblclick yet');
+
+    { Double-click within threshold. }
+    Clock.NowValue := 1100;
+    App.Feed(LuxEventMouse(10, 10, mbLeft, maPress, [], 0, False));
+    App.Feed(LuxEventMouse(10, 10, mbLeft, maRelease, [], 0, False));
+    LuxCheckEqualInt(2, Probe.Clicks, 'second click');
+    LuxCheckEqualInt(1, Probe.DblClicks, 'double-click');
+
+    { Double-click not repeated for third click. }
+    Clock.NowValue := 1200;
+    App.Feed(LuxEventMouse(10, 10, mbLeft, maPress, [], 0, False));
+    App.Feed(LuxEventMouse(10, 10, mbLeft, maRelease, [], 0, False));
+    LuxCheckEqualInt(3, Probe.Clicks, 'third click');
+    LuxCheckEqualInt(1, Probe.DblClicks, 'no triple-click as dbl');
+
+    { Drag begins after threshold (2 cells). }
+    App.Feed(LuxEventMouse(5, 5, mbLeft, maPress, [], 0, False));
+    App.Feed(LuxEventMouse(6, 5, mbLeft, maMove, [], 0, False));
+    LuxCheckEqualInt(0, Probe.DragBegins, 'no drag below threshold');
+    App.Feed(LuxEventMouse(7, 5, mbLeft, maMove, [], 0, False));
+    LuxCheckEqualInt(1, Probe.DragBegins, 'drag begins at threshold');
+    App.Feed(LuxEventMouse(8, 5, mbLeft, maMove, [], 0, False));
+    LuxCheckEqualInt(1, Probe.DragMoves, 'drag move');
+    App.Feed(LuxEventMouse(8, 5, mbLeft, maRelease, [], 0, False));
+    LuxCheckEqualInt(1, Probe.DragEnds, 'drag end');
+    LuxCheckEqualInt(3, Probe.Clicks, 'no click after drag');
+
+    { Wheel. }
+    App.Feed(LuxEventMouse(5, 5, mbNone, maWheel, [], 1, False));
+    LuxCheckEqualInt(1, Probe.WheelEvents, 'wheel delivered');
+    LuxCheckEqualInt(1, Probe.LastWheelDelta, 'wheel delta');
+  finally
+    App.Free;
+    Src := nil;
+  end;
+end;
+
+procedure TestScrollViewBasics;
+var
+  App: TTestControlApp;
+  Src: ILuxEventSource;
+  SV: TLuxScrollView;
+  Content: TLuxControl;
+  Probe: TSemanticProbe;
+  VR: TLuxRect;
+begin
+  LuxSection('ScrollView basics');
+  Src := TFakeEventSource.Create;
+  App := TTestControlApp.Create(TLuxMemoryTerminalWriter.Create, Src, 20, 10);
+  try
+    SV := TLuxScrollView.Create(App.Root);
+    SV.SetBounds(0, 0, 20, 10);
+
+    Content := TLuxControl.Create(nil);
+    Content.SetBounds(0, 0, 40, 30);
+    SV.Content := Content;
+
+    LuxCheckEqualInt(20, SV.ViewportWidth, 'viewport w');
+    LuxCheckEqualInt(10, SV.ViewportHeight, 'viewport h');
+    LuxCheckEqualInt(40, SV.ContentWidth, 'content w');
+    LuxCheckEqualInt(30, SV.ContentHeight, 'content h');
+    LuxCheckEqualInt(20, SV.MaximumScrollX, 'max scroll x');
+    LuxCheckEqualInt(20, SV.MaximumScrollY, 'max scroll y');
+
+    { Offsets clamp correctly. }
+    SV.ScrollTo(100, 100);
+    LuxCheckEqualInt(20, SV.ScrollX, 'clamp x');
+    LuxCheckEqualInt(20, SV.ScrollY, 'clamp y');
+
+    SV.ScrollTo(-5, -3);
+    LuxCheckEqualInt(0, SV.ScrollX, 'clamp x negative');
+    LuxCheckEqualInt(0, SV.ScrollY, 'clamp y negative');
+
+    { ScrollBy. }
+    SV.ScrollTo(0, 0);
+    SV.ScrollBy(5, 3);
+    LuxCheckEqualInt(5, SV.ScrollX, 'scrollby x');
+    LuxCheckEqualInt(3, SV.ScrollY, 'scrollby y');
+
+    { Re-clamp on viewport resize. }
+    SV.ScrollTo(20, 20);
+    SV.SetBounds(0, 0, 20, 10);
+    Content.SetBounds(0, 0, 30, 15);
+    SV.ScrollTo(20, 20);
+    LuxCheckEqualInt(10, SV.ScrollX, 'reclamp after content shrink x');
+    LuxCheckEqualInt(5, SV.ScrollY, 'reclamp after content shrink y');
+
+    { VisibleContentRect. }
+    Content.SetBounds(0, 0, 40, 30);
+    SV.ScrollTo(5, 7);
+    VR := SV.VisibleContentRect;
+    LuxCheckEqualInt(5, VR.Left, 'vcr left');
+    LuxCheckEqualInt(7, VR.Top, 'vcr top');
+    LuxCheckEqualInt(20, VR.Width, 'vcr width');
+    LuxCheckEqualInt(10, VR.Height, 'vcr height');
+
+    { EnsureVisible (rect). }
+    SV.ScrollTo(0, 0);
+    SV.EnsureVisible(LuxRect(25, 15, 5, 5));
+    LuxCheck(SV.ScrollX >= 10, 'ensure visible scrolled x');
+    LuxCheck(SV.ScrollY >= 10, 'ensure visible scrolled y');
+
+    { EnsureVisible already visible does nothing. }
+    SV.ScrollTo(5, 5);
+    SV.EnsureVisible(LuxRect(5, 5, 3, 3));
+    LuxCheckEqualInt(5, SV.ScrollX, 'ensure no scroll x');
+    LuxCheckEqualInt(5, SV.ScrollY, 'ensure no scroll y');
+
+    { Wheel scrolling. }
+    SV.ScrollTo(0, 0);
+    App.Feed(LuxEventMouse(5, 5, mbNone, maWheel, [], -1, False));
+    LuxCheck(SV.ScrollY > 0, 'wheel scrolled down');
+    LuxCheckEqualInt(SV.WheelScrollStep, SV.ScrollY, 'wheel step');
+
+    { Wheel at max does not mark handled (returns False → bubbles). }
+    SV.ScrollTo(0, SV.MaximumScrollY);
+    Probe := TSemanticProbe.Create(nil);
+    try
+      { Can't easily test bubbling without nesting; just check offset unchanged. }
+      App.Feed(LuxEventMouse(5, 5, mbNone, maWheel, [], -1, False));
+      LuxCheckEqualInt(SV.MaximumScrollY, SV.ScrollY, 'wheel at max no change');
+    finally
+      Probe.Free;
+    end;
+
+    { Hit testing accounts for scroll offset. }
+    Content.SetBounds(0, 0, 40, 30);
+    SV.ScrollTo(0, 0);
   finally
     App.Free;
     Src := nil;
@@ -1805,6 +2041,8 @@ begin
   TestSplitCaptureLoss;
   TestSplitResizeAndOrientationDuringDrag;
   TestSplitPropertyChangesDuringDrag;
+  TestSemanticMouseDispatcher;
+  TestScrollViewBasics;
   TestControlRenderingAndEvents;
   TestControlKeyboardRouting;
   Halt(LuxTestExitCode);

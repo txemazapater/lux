@@ -53,6 +53,7 @@ function Get-LuxWindowsUnitPaths {
         (Join-Path $Root 'examples\stack_demo'),
         (Join-Path $Root 'examples\cursor_demo'),
         (Join-Path $Root 'examples\split_demo'),
+        (Join-Path $Root 'examples\scroll_demo'),
         (Join-Path $Root 'examples\input_inspector')
     )
 }

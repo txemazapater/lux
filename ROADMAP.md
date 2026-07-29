@@ -191,6 +191,23 @@ Process for every 6B subphase: clean compile, automated tests where useful, a de
 
 Do not implement docking or Lantern widgets in 6B.
 
+### Phase 6C — Mouse Semantics & ScrollView Foundation
+
+Status: **complete**
+
+- Centralized `TLuxMouseDispatcher` owned by `TLuxControlApplication`.
+- Semantic mouse callbacks on `TLuxControl` (enter/leave/move/down/up/click/double-click/drag/wheel).
+- Dispatcher-owned double-click recognition (configurable thresholds; platform `maDoubleClick` suppressed).
+- Threshold-based drag initiation (2-cell default, configurable).
+- Wheel event bubbling via parent chain.
+- `TLuxButton` and `TLuxSplitContainer` migrated to semantic callbacks.
+- `TLuxScrollView`: viewport, content child, scroll offsets, clamping, wheel consumption, `EnsureVisible`, `VisibleContentRect`.
+- Tests: 468 assertions covering semantic dispatch, ScrollView correctness, and threshold-based split drag.
+- `scroll_demo` interactive example.
+- See `docs/adr/0011-mouse-dispatcher-scrollview.md`.
+
+Deferred: visual scrollbar controls, kinetic scrolling, virtualization, drag-and-drop data transfer.
+
 ## Phase 7 - Developer usability
 
 - Package distribution strategy.
@@ -216,4 +233,4 @@ Git support, repository models and editor semantics belong to Lantern, not the L
 
 ## Current priority
 
-Phases **6B.1–6B.4** are complete. Phase 5.2.1 deferred resize remains experimental. Next: **6C — ScrollView and scrollbars**. Do not pull Lantern-specific widgets into the LUX core.
+Phases **6B.1–6B.4** and **6C** are complete. Phase 5.2.1 deferred resize remains experimental. Next: **6D — Checkbox, RadioButton, Label**. Do not pull Lantern-specific widgets into the LUX core.

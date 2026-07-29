@@ -20,16 +20,19 @@ type
     FOnClick: TLuxNotifyEvent;
     FPressed: Boolean;
     FStyle: TLuxControlStyle;
-    FMouseDownInside: Boolean;
     procedure SetText(const AValue: UnicodeString);
     procedure SetPressed(AValue: Boolean);
     procedure SetStyle(const AValue: TLuxControlStyle);
-    procedure Click;
+    procedure DoClick;
     function ResolveColors(out Fg, Bg: TLuxColor): TLuxTextStyle;
   protected
     procedure Paint(const Ctx: TLuxPaintContext); override;
     function DoHandleEvent(const Event: TLuxEvent): Boolean; override;
   public
+    procedure SemanticMouseDown(const Event: TLuxSemanticMouseEvent); override;
+    procedure SemanticMouseUp(const Event: TLuxSemanticMouseEvent); override;
+    procedure SemanticClick(const Event: TLuxSemanticMouseEvent); override;
+    procedure SemanticMouseLeave; override;
     constructor Create(AParent: TLuxControl = nil);
     property Text: UnicodeString read FText write SetText;
     property OnClick: TLuxNotifyEvent read FOnClick write FOnClick;
@@ -45,7 +48,6 @@ begin
   FText := '';
   FOnClick := nil;
   FPressed := False;
-  FMouseDownInside := False;
   FStyle := LuxDefaultControlStyle;
   Focusable := True;
 end;
@@ -72,7 +74,7 @@ begin
   Invalidate;
 end;
 
-procedure TLuxButton.Click;
+procedure TLuxButton.DoClick;
 begin
   if not IsEffectivelyEnabled then
     Exit;
@@ -135,50 +137,39 @@ end;
 function TLuxButton.DoHandleEvent(const Event: TLuxEvent): Boolean;
 begin
   Result := False;
-  case Event.Kind of
-    ekKey:
-      begin
-        if Event.Key.Action = kaRelease then
-          Exit(False);
-        if (Event.Key.Key = lkEnter) or
-          ((Event.Key.Key = lkChar) and (Event.Key.Ch = ' ')) then
-        begin
-          Click;
-          Exit(True);
-        end;
-      end;
-    ekMouse:
-      begin
-        { Mouse coordinates are already local (see TLuxControlApplication). }
-        if Event.Mouse.Button <> mbLeft then
-          Exit(False);
-        case Event.Mouse.Action of
-          maPress:
-            begin
-              if LuxRectContainsXY(LuxRect(0, 0, Width, Height),
-                Event.Mouse.X, Event.Mouse.Y) then
-              begin
-                FMouseDownInside := True;
-                Pressed := True;
-                Result := True;
-              end;
-            end;
-          maRelease:
-            begin
-              if FMouseDownInside then
-              begin
-                FMouseDownInside := False;
-                Pressed := False;
-                { Phase 5: no mouse capture. Click only if release is still inside. }
-                if LuxRectContainsXY(LuxRect(0, 0, Width, Height),
-                  Event.Mouse.X, Event.Mouse.Y) then
-                  Click;
-                Result := True;
-              end;
-            end;
-        end;
-      end;
+  if Event.Kind <> ekKey then
+    Exit;
+  if Event.Key.Action = kaRelease then
+    Exit(False);
+  if (Event.Key.Key = lkEnter) or
+    ((Event.Key.Key = lkChar) and (Event.Key.Ch = ' ')) then
+  begin
+    DoClick;
+    Exit(True);
   end;
+end;
+
+procedure TLuxButton.SemanticMouseDown(const Event: TLuxSemanticMouseEvent);
+begin
+  if Event.Button = mbLeft then
+    Pressed := True;
+end;
+
+procedure TLuxButton.SemanticMouseUp(const Event: TLuxSemanticMouseEvent);
+begin
+  if Event.Button = mbLeft then
+    Pressed := False;
+end;
+
+procedure TLuxButton.SemanticClick(const Event: TLuxSemanticMouseEvent);
+begin
+  if Event.Button = mbLeft then
+    DoClick;
+end;
+
+procedure TLuxButton.SemanticMouseLeave;
+begin
+  Pressed := False;
 end;
 
 end.
