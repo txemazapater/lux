@@ -28,6 +28,7 @@ uses
   Lux.CheckBox,
   Lux.RadioButton,
   Lux.Separator,
+  Lux.Toggle,
   Lux.ControlApplication,
   Lux.Layout,
   Lux.Layout.Vertical,
@@ -2229,6 +2230,86 @@ begin
   end;
 end;
 
+procedure TestToggle;
+var
+  App: TTestControlApp;
+  Src: ILuxEventSource;
+  Tg: TLuxToggle;
+  Changes: TClickCounter;
+  Surf: TLuxSurface;
+begin
+  LuxSection('Lux.Toggle');
+  Src := TFakeEventSource.Create;
+  App := TTestControlApp.Create(TLuxMemoryTerminalWriter.Create, Src, 40, 10);
+  Changes := TClickCounter.Create;
+  try
+    Tg := TLuxToggle.Create(App.Root);
+    Tg.Text := 'Auto';
+    Tg.SetBounds(0, 0, 20, 1);
+    Tg.OnChange := @Changes.OnClick;
+    Changes.Count := 0;
+
+    LuxCheck(not Tg.Checked, 'default off');
+    LuxCheckEqualInt(1 + 7 + 1 + Length('Auto'), Tg.PreferredWidth, 'pref w ascii');
+    LuxCheckEqualInt(1, Tg.PreferredHeight, 'pref h');
+
+    Tg.Checked := True;
+    LuxCheck(Tg.Checked, 'programmatic on');
+    LuxCheckEqualInt(1, Changes.Count, 'onchange on real assign');
+    Tg.Checked := True;
+    LuxCheckEqualInt(1, Changes.Count, 'no onchange on no-op');
+
+    Tg.Checked := False;
+    Changes.Count := 0;
+    App.Focus.SetFocus(Tg);
+    LuxCheck(Tg.HasFocus, 'toggle focused');
+    App.Feed(LuxEventKey(lkChar, ' ', [], kaPress));
+    LuxCheck(Tg.Checked, 'space toggles on');
+    LuxCheckEqualInt(1, Changes.Count, 'space one change');
+
+    App.Feed(LuxEventMouse(2, 0, mbLeft, maPress, [], 0, False));
+    App.Feed(LuxEventMouse(2, 0, mbLeft, maRelease, [], 0, False));
+    LuxCheck(not Tg.Checked, 'click toggles off');
+    LuxCheckEqualInt(2, Changes.Count, 'click one change');
+
+    { Disabled. }
+    Changes.Count := 0;
+    Tg.Enabled := False;
+    App.Focus.EnsureValid;
+    LuxCheck(not App.Focus.SetFocus(Tg), 'disabled no focus');
+    App.Feed(LuxEventMouse(2, 0, mbLeft, maPress, [], 0, False));
+    App.Feed(LuxEventMouse(2, 0, mbLeft, maRelease, [], 0, False));
+    LuxCheck(not Tg.Checked, 'disabled click inert');
+    LuxCheckEqualInt(0, Changes.Count, 'disabled no change');
+    Tg.Enabled := True;
+
+    { Unicode preferred size. }
+    Tg.Text := UnicodeString(#$00E9) + 't' + UnicodeString(#$00E9);
+    LuxCheckEqualInt(1 + 7 + 1 + 3, Tg.PreferredWidth, 'pref w unicode');
+
+    Tg.Text := '';
+    LuxCheckEqualInt(1 + 7, Tg.PreferredWidth, 'empty text pref w');
+
+    { Narrow / clip safe. }
+    Tg.Text := 'Wide label here';
+    Tg.Checked := True;
+    Tg.SetBounds(0, 0, 4, 1);
+    App.Root.Render(App.Surface);
+    Surf := App.Surface;
+    LuxCheck(Surf.Cells[1, 0].Text <> '', 'narrow still paints');
+
+    Tg.SetBounds(0, 0, 20, 1);
+    App.Focus.SetFocus(Tg);
+    App.Root.Render(App.Surface);
+    Surf := App.Surface;
+    LuxCheckEqualStr('>', Surf.Cells[0, 0].Text, 'focus marker');
+  finally
+    Changes.Free;
+    App.Free;
+    Src := nil;
+  end;
+end;
+
 begin
   WriteLn('LUX portable tests');
   TestVersion;
@@ -2257,6 +2338,7 @@ begin
   TestScrollViewBasics;
   TestFormControls;
   TestSeparator;
+  TestToggle;
   TestControlRenderingAndEvents;
   TestControlKeyboardRouting;
   Halt(LuxTestExitCode);
