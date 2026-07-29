@@ -274,7 +274,7 @@ Principles (formalized in `docs/adr/0013-appearance-themes-glyphs-config.md`):
 
 Suggested source tree (when implementation begins): `src/appearance/`.
 
-**Sequencing:** finish remaining Phase 6 subphases (**6E–6J**) before starting Phase 7 implementation.
+**Sequencing (under review):** ADR 0013 still describes the Appearance System. The 2026-07 architecture review recommends a **thin in-memory appearance seam (roles/glyphs) before more glyph-heavy controls**, while deferring `.luxtheme` path discovery. See `docs/architecture-review-2026-07.md`. Do not assume “all of Phase 6 then Phase 7” without that review.
 
 ## Phase 8 — Developer usability
 
@@ -301,4 +301,13 @@ Git support, repository models and editor semantics belong to Lantern, not the L
 
 ## Current priority
 
-Phases **6B.1–6B.4**, **6C**, and **6D** form controls (including Separator, Toggle, GroupBox) are implemented; expanded `form_demo` awaits visual sign-off. After that sign-off, next is **6E — ProgressBar, Slider**. **Phase 7 — Appearance System** follows completion of Phase 6 (ADR 0013). Phase 5.2.1 deferred resize remains experimental. Do not pull Lantern-specific widgets into the LUX core.
+**Technical pause — architecture review (2026-07).** Implementation of new Phase 6 controls is suspended until the capability map is adopted.
+
+- Record: [`docs/architecture-review-2026-07.md`](docs/architecture-review-2026-07.md)
+- Phases **0–6D** remain the implemented baseline (Separator / Toggle / GroupBox included).
+- **Do not start old 6E (ProgressBar/Slider)** without a Range model.
+- **Do not treat “finish 6E–6J then Phase 7 Appearance” as the default path.**
+
+**Recommended next implementation slice:** **S1 — Shared container & paint contracts** (stabilize client area / `ContentOffset`, thin in-memory appearance seam for glyphs/roles). Then **S2 — Range model**, then ProgressBar/Slider.
+
+Phase 5.2.1 deferred resize remains experimental. Do not pull Lantern-specific widgets into the LUX core.

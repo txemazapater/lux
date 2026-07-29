@@ -4,37 +4,37 @@ Last updated: 2026-07-29
 
 ## Current phase
 
-**Phase 6D — Form controls** — **implemented** (expanded `form_demo` awaits visual review)
+**Technical pause — architecture review**
 
-Phases 0–5, 5.1, 5.2, 6A, **6B.1–6B.4**, **6C**, and **6D** controls are implemented. Phase 5.2.1 deferred resize remains experimental.
+Implementation of new controls is suspended. Capability map and sequencing:
 
-**Phase 7 — Appearance System** remains planned after Phase 6 completes. Do not start Phase 7 or Phase 6E until 6D visual sign-off.
+- [`docs/architecture-review-2026-07.md`](docs/architecture-review-2026-07.md)
 
-## Phase 6D controls
+## Implemented baseline
 
-| Control | Status |
-|---------|--------|
-| Label / CheckBox / RadioButton | done (visual passed) |
-| Separator (6D.1) | done |
-| Toggle (6D.2) | done |
-| GroupBox (6D.3) | done |
+Phases 0–5, 5.1, 5.2, 6A, **6B.1–6B.4**, **6C**, and **6D** (Label, CheckBox, RadioButton, Separator, Toggle, GroupBox).
+
+Phase 5.2.1 deferred resize remains experimental.
+
+## Next (after adopting the review)
+
+1. **S1** — Shared container & paint contracts (client area, thin appearance seam)
+2. **S2** — Range model
+3. ProgressBar / Slider on Range
+
+**Do not start old Phase 6E as previously worded.**
 
 ## Verified (latest local)
 
 | Item | Result |
 |------|--------|
 | Host (dev) | Windows x86_64 FPC 3.2.2 |
-| Portable tests | **555 passed** |
-| `form_demo_windows` | builds |
+| Portable tests | **567 passed** (after GroupBox border fixes) |
+| `form_demo` | layout columns; visual OK for GroupBox borders |
 
 ## Commands
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\test.ps1
 powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Target form-demo
-.\bin\form_demo_windows.exe
 ```
-
-## Next
-
-Visual review of expanded `form_demo`, then **6E — ProgressBar, Slider**.
