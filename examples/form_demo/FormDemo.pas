@@ -1,4 +1,4 @@
-{ Phase 6D form controls demo: Label, CheckBox, RadioButton. }
+{ Phase 6D form controls acceptance demo. }
 unit FormDemo;
 
 {$mode objfpc}{$H+}
@@ -16,9 +16,13 @@ uses
   Lux.Button,
   Lux.CheckBox,
   Lux.RadioButton,
+  Lux.Separator,
+  Lux.Toggle,
+  Lux.GroupBox,
   Lux.Layout,
   Lux.Layout.Vertical,
-  Lux.Events;
+  Lux.Events,
+  Lux.Debug.EventLog;
 
 type
   TFormDemoApp = class(TLuxControlApplication)
@@ -26,18 +30,24 @@ type
     FMain: TLuxVerticalLayout;
     FTitle: TLuxLabel;
     FUnicode: TLuxLabel;
-    FCb1, FCb2, FCbDisabled: TLuxCheckBox;
-    FGroupSize: TLuxPanel;
-    FSizeLbl: TLuxLabel;
-    FRadS, FRadM, FRadL: TLuxRadioButton;
-    FGroupColor: TLuxPanel;
-    FColorLbl: TLuxLabel;
-    FRadRed, FRadGreen, FRadBlue: TLuxRadioButton;
+    FCb1, FCb2: TLuxCheckBox;
+    FToggle: TLuxToggle;
+    FSep: TLuxSeparator;
+    FThemeBox: TLuxGroupBox;
+    FRadDark, FRadLight, FRadSystem: TLuxRadioButton;
+    FDisabledBox: TLuxGroupBox;
+    FCbDisabled: TLuxCheckBox;
+    FTgDisabled: TLuxToggle;
     FStatus: TLuxLabel;
+    FDiag: TLuxLabel;
     FQuit: TLuxButton;
+    FLog: TEventLogControl;
+    FLastAction: UnicodeString;
     procedure RefreshStatus;
     procedure OnAnyChange(Sender: TObject);
     procedure QuitClick(Sender: TObject);
+    function FocusName: UnicodeString;
+    function RadioChoice: UnicodeString;
   protected
     function HandleEvent(const Event: TLuxEvent): Boolean; override;
     procedure Update; override;
@@ -51,85 +61,78 @@ procedure TFormDemoApp.AfterConstruction;
 begin
   inherited AfterConstruction;
 
+  FLastAction := 'ready';
+
   FMain := TLuxVerticalLayout.Create(Root);
   FMain.Padding := LuxPaddingAll(1);
   FMain.Spacing := 0;
   FMain.Expand := 1;
 
   FTitle := TLuxLabel.Create(FMain);
-  FTitle.Text := 'Phase 6D — Label / CheckBox / RadioButton';
+  FTitle.Text := 'Phase 6D — Form controls';
   FTitle.PreferredHeight := 1;
 
   FUnicode := TLuxLabel.Create(FMain);
   FUnicode.Text := 'Unicode: caf' + UnicodeString(#$00E9) + ' · ' +
-    UnicodeString(#$65E5) + UnicodeString(#$672C) + UnicodeString(#$8A9E);
+    UnicodeString(#$65E5) + UnicodeString(#$672C);
   FUnicode.PreferredHeight := 1;
 
   FCb1 := TLuxCheckBox.Create(FMain);
-  FCb1.Text := 'Enable notifications';
+  FCb1.Text := 'Show line numbers';
+  FCb1.Checked := True;
   FCb1.OnChange := @OnAnyChange;
 
   FCb2 := TLuxCheckBox.Create(FMain);
-  FCb2.Text := 'Remember me';
-  FCb2.Checked := True;
+  FCb2.Text := 'Highlight current line';
   FCb2.OnChange := @OnAnyChange;
 
-  FCbDisabled := TLuxCheckBox.Create(FMain);
+  FToggle := TLuxToggle.Create(FMain);
+  FToggle.Text := 'Auto save';
+  FToggle.OnChange := @OnAnyChange;
+
+  FSep := TLuxSeparator.Create(FMain);
+  FSep.Orientation := loHorizontal;
+
+  FThemeBox := TLuxGroupBox.Create(FMain);
+  FThemeBox.Text := 'Theme preference (labels only)';
+  FThemeBox.PreferredHeight := 5;
+  FThemeBox.Expand := 0;
+
+  FRadDark := TLuxRadioButton.Create(FThemeBox);
+  FRadDark.Text := 'Dark';
+  FRadDark.SetBounds(0, 0, 20, 1);
+  FRadDark.Checked := True;
+  FRadDark.OnChange := @OnAnyChange;
+
+  FRadLight := TLuxRadioButton.Create(FThemeBox);
+  FRadLight.Text := 'Light';
+  FRadLight.SetBounds(0, 1, 20, 1);
+  FRadLight.OnChange := @OnAnyChange;
+
+  FRadSystem := TLuxRadioButton.Create(FThemeBox);
+  FRadSystem.Text := 'System';
+  FRadSystem.SetBounds(0, 2, 20, 1);
+  FRadSystem.OnChange := @OnAnyChange;
+
+  FDisabledBox := TLuxGroupBox.Create(FMain);
+  FDisabledBox.Text := 'Disabled group';
+  FDisabledBox.PreferredHeight := 4;
+  FDisabledBox.Expand := 0;
+  FDisabledBox.Enabled := False;
+
+  FCbDisabled := TLuxCheckBox.Create(FDisabledBox);
   FCbDisabled.Text := 'Disabled option';
-  FCbDisabled.Enabled := False;
+  FCbDisabled.SetBounds(0, 0, 22, 1);
 
-  FGroupSize := TLuxPanel.Create(FMain);
-  FGroupSize.BorderStyle := lbsSingle;
-  FGroupSize.PreferredHeight := 5;
-  FGroupSize.Expand := 0;
-
-  FSizeLbl := TLuxLabel.Create(FGroupSize);
-  FSizeLbl.Text := 'Size (group A)';
-  FSizeLbl.SetBounds(1, 0, 20, 1);
-
-  FRadS := TLuxRadioButton.Create(FGroupSize);
-  FRadS.Text := 'Small';
-  FRadS.SetBounds(1, 1, 18, 1);
-  FRadS.OnChange := @OnAnyChange;
-
-  FRadM := TLuxRadioButton.Create(FGroupSize);
-  FRadM.Text := 'Medium';
-  FRadM.SetBounds(1, 2, 18, 1);
-  FRadM.Checked := True;
-  FRadM.OnChange := @OnAnyChange;
-
-  FRadL := TLuxRadioButton.Create(FGroupSize);
-  FRadL.Text := 'Large';
-  FRadL.SetBounds(1, 3, 18, 1);
-  FRadL.OnChange := @OnAnyChange;
-
-  FGroupColor := TLuxPanel.Create(FMain);
-  FGroupColor.BorderStyle := lbsSingle;
-  FGroupColor.PreferredHeight := 5;
-  FGroupColor.Expand := 0;
-
-  FColorLbl := TLuxLabel.Create(FGroupColor);
-  FColorLbl.Text := 'Color (group B — independent)';
-  FColorLbl.SetBounds(1, 0, 30, 1);
-
-  FRadRed := TLuxRadioButton.Create(FGroupColor);
-  FRadRed.Text := 'Red';
-  FRadRed.SetBounds(1, 1, 18, 1);
-  FRadRed.Checked := True;
-  FRadRed.OnChange := @OnAnyChange;
-
-  FRadGreen := TLuxRadioButton.Create(FGroupColor);
-  FRadGreen.Text := 'Green';
-  FRadGreen.SetBounds(1, 2, 18, 1);
-  FRadGreen.OnChange := @OnAnyChange;
-
-  FRadBlue := TLuxRadioButton.Create(FGroupColor);
-  FRadBlue.Text := 'Blue';
-  FRadBlue.SetBounds(1, 3, 18, 1);
-  FRadBlue.OnChange := @OnAnyChange;
+  FTgDisabled := TLuxToggle.Create(FDisabledBox);
+  FTgDisabled.Text := 'Disabled toggle';
+  FTgDisabled.SetBounds(0, 1, 24, 1);
 
   FStatus := TLuxLabel.Create(FMain);
   FStatus.PreferredHeight := 1;
+
+  FDiag := TLuxLabel.Create(FMain);
+  FDiag.PreferredHeight := 1;
 
   FQuit := TLuxButton.Create(FMain);
   FQuit.Text := 'Quit';
@@ -137,12 +140,62 @@ begin
   FQuit.PreferredHeight := 1;
   FQuit.OnClick := @QuitClick;
 
+  FLog := TEventLogControl.Create(Root);
+  FLog.Title := 'Actions';
+  FLog.Capacity := 64;
+  FLog.SetBounds(Width - 28, 1, 27, Height - 2);
+  FLog.Add('Demo ready — Tab/Space/Click Q=quit');
+
   Focus.SetFocus(FCb1);
   RefreshStatus;
 end;
 
-procedure TFormDemoApp.OnAnyChange(Sender: TObject);
+function TFormDemoApp.FocusName: UnicodeString;
+var
+  C: TLuxControl;
 begin
+  C := Focus.FocusedControl;
+  if C = nil then
+    Exit('(none)');
+  if C is TLuxCheckBox then
+    Exit('Cb:' + TLuxCheckBox(C).Text);
+  if C is TLuxToggle then
+    Exit('Tg:' + TLuxToggle(C).Text);
+  if C is TLuxRadioButton then
+    Exit('Rad:' + TLuxRadioButton(C).Text);
+  if C is TLuxButton then
+    Exit('Btn:' + TLuxButton(C).Text);
+  Result := C.ClassName;
+end;
+
+function TFormDemoApp.RadioChoice: UnicodeString;
+begin
+  if FRadDark.Checked then
+    Exit('Dark');
+  if FRadLight.Checked then
+    Exit('Light');
+  if FRadSystem.Checked then
+    Exit('System');
+  Result := '(none)';
+end;
+
+procedure TFormDemoApp.OnAnyChange(Sender: TObject);
+var
+  Msg: UnicodeString;
+begin
+  if Sender is TLuxCheckBox then
+    Msg := 'Check ' + TLuxCheckBox(Sender).Text + '=' +
+      BoolToStr(TLuxCheckBox(Sender).Checked, True)
+  else if Sender is TLuxToggle then
+    Msg := 'Toggle ' + TLuxToggle(Sender).Text + '=' +
+      BoolToStr(TLuxToggle(Sender).Checked, True)
+  else if Sender is TLuxRadioButton then
+    Msg := 'Radio ' + TLuxRadioButton(Sender).Text
+  else
+    Msg := 'Change';
+  FLastAction := Msg;
+  if FLog <> nil then
+    FLog.Add(Msg);
   RefreshStatus;
 end;
 
@@ -152,32 +205,14 @@ begin
 end;
 
 procedure TFormDemoApp.RefreshStatus;
-var
-  SizeSel, ColorSel: UnicodeString;
 begin
-  if FRadS.Checked then
-    SizeSel := 'Small'
-  else if FRadM.Checked then
-    SizeSel := 'Medium'
-  else if FRadL.Checked then
-    SizeSel := 'Large'
-  else
-    SizeSel := '(none)';
-
-  if FRadRed.Checked then
-    ColorSel := 'Red'
-  else if FRadGreen.Checked then
-    ColorSel := 'Green'
-  else if FRadBlue.Checked then
-    ColorSel := 'Blue'
-  else
-    ColorSel := '(none)';
-
   FStatus.Text := Format(
-    'Cb1=%s Cb2=%s Size=%s Color=%s Focus=%s  Tab/Space/Click  Q=quit',
+    'Cb1=%s Cb2=%s Tg=%s Radio=%s  %dx%d',
     [BoolToStr(FCb1.Checked, True), BoolToStr(FCb2.Checked, True),
-     SizeSel, ColorSel,
-     BoolToStr(Focus.FocusedControl <> nil, True)]);
+     BoolToStr(FToggle.Checked, True), RadioChoice, Width, Height]);
+  FDiag.Text := Format('Focus=%s  Last=%s', [FocusName, FLastAction]);
+  if FLog <> nil then
+    FLog.SetBounds(Width - 28, 1, 27, Height - 2);
 end;
 
 function TFormDemoApp.HandleEvent(const Event: TLuxEvent): Boolean;

@@ -46,6 +46,9 @@ jobs:
       - name: Build controls_demo_unix
         run: ./tools/build.sh controls-demo
 
+      - name: Build scroll_demo_unix
+        run: ./tools/build.sh scroll-demo
+
       - name: Build form_demo_unix
         run: ./tools/build.sh form-demo
 
