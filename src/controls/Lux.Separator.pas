@@ -9,7 +9,8 @@ uses
   Lux.Geometry,
   Lux.Color,
   Lux.Cell,
-  Lux.Control;
+  Lux.Control,
+  Lux.Appearance;
 
 type
   TLuxSeparator = class(TLuxControl)
@@ -31,11 +32,6 @@ type
   end;
 
 implementation
-
-{ Temporary Phase 6 glyphs (U+2500 / U+2502). Migrate to Phase 7 glyph sets. }
-const
-  LuxSepGlyphHorizontal = WideChar($2500); { ─ }
-  LuxSepGlyphVertical = WideChar($2502);   { │ }
 
 constructor TLuxSeparator.Create(AParent: TLuxControl);
 begin
@@ -95,6 +91,7 @@ end;
 procedure TLuxSeparator.Paint(const Ctx: TLuxPaintContext);
 var
   Fill: TLuxCell;
+  App: TLuxAppearance;
   Glyph: UnicodeString;
   X, Y, W, H: Integer;
   Fg: TLuxColor;
@@ -104,22 +101,23 @@ begin
   if (W <= 0) or (H <= 0) then
     Exit;
 
+  App := LuxCtxAppearance(Ctx);
   Fg := FForeground;
   if not IsEffectivelyEnabled then
-    Fg := LuxColorRGB(128, 128, 128);
+    Fg := App.Color(lcrTextDisabled);
 
   Fill := LuxCellMake(' ', 1, Fg, FBackground, []);
   LuxPaintFill(Ctx, LuxRect(0, 0, W, H), Fill);
 
   if FOrientation = loHorizontal then
   begin
-    Glyph := UnicodeString(LuxSepGlyphHorizontal);
+    Glyph := App.Glyph(lgSepHorizontal);
     for X := 0 to W - 1 do
       LuxPaintText(Ctx, X, H div 2, Glyph, Fg, FBackground, []);
   end
   else
   begin
-    Glyph := UnicodeString(LuxSepGlyphVertical);
+    Glyph := App.Glyph(lgSepVertical);
     for Y := 0 to H - 1 do
       LuxPaintText(Ctx, W div 2, Y, Glyph, Fg, FBackground, []);
   end;

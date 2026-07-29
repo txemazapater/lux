@@ -17,7 +17,8 @@ uses
   Lux.Control,
   Lux.ControlContainer,
   Lux.FocusManager,
-  Lux.MouseDispatcher;
+  Lux.MouseDispatcher,
+  Lux.Appearance;
 
 type
   { Owns a root control and focus manager. Routes events into the tree. }
@@ -28,6 +29,8 @@ type
     FDispatcher: TLuxMouseDispatcher;
     FCaptured: TLuxControl;
     FLastMouseTarget: TLuxControl;
+    FAppearance: TLuxAppearance;
+    FOwnsAppearance: Boolean;
     function GetDispatcherTime: Int64;
     procedure HostInvalidate(Sender: TObject);
     procedure ControlWillFree(Sender: TObject);
@@ -59,6 +62,8 @@ type
     property Root: TLuxRootControl read FRoot;
     property Focus: TLuxFocusManager read FFocus;
     property Dispatcher: TLuxMouseDispatcher read FDispatcher;
+    { Active appearance for paint. Defaults to builtin; same look as Phase 6. }
+    property Appearance: TLuxAppearance read FAppearance;
   end;
 
 implementation
@@ -81,6 +86,8 @@ begin
   FDispatcher := TLuxMouseDispatcher.Create(FRoot, @GetDispatcherTime);
   FCaptured := nil;
   FLastMouseTarget := nil;
+  FAppearance := LuxBuiltinAppearance;
+  FOwnsAppearance := False;
 end;
 
 destructor TLuxControlApplication.Destroy;
@@ -92,6 +99,10 @@ begin
   FreeAndNil(FDispatcher);
   FreeAndNil(FFocus);
   FreeAndNil(FRoot);
+  if FOwnsAppearance then
+    FreeAndNil(FAppearance)
+  else
+    FAppearance := nil;
   inherited Destroy;
 end;
 
@@ -232,9 +243,12 @@ begin
 end;
 
 procedure TLuxControlApplication.RenderContent(ASurface: TLuxSurface);
+var
+  Ctx: TLuxPaintContext;
 begin
   ASurface.Clear;
-  FRoot.Render(ASurface);
+  Ctx := LuxPaintContext(ASurface, 0, 0, ASurface.Bounds, FAppearance);
+  FRoot.Render(Ctx);
 end;
 
 function TLuxControlApplication.TranslateMouseToLocal(AControl: TLuxControl;

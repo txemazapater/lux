@@ -51,6 +51,8 @@ The application produces a new frame in memory. The renderer compares it with th
 
 A **full repaint** rewrites every cell. It does not clear the terminal (`ESC[2J`). When the surface shrinks, leftover glyphs outside the new bounds are cleared with erase-to-end sequences. See `docs/adr/0006-full-repaint-without-clear.md`.
 
+`TLuxPaintContext` carries surface, origin, clip, and an optional `TLuxAppearance` (builtin defaults match Phase 6 literals). Client geometry uses `ContentOffset` / `ClientRect` / `ClientSize` (`docs/adr/0015-client-area-appearance-seam.md`).
+
 The renderer must track terminal state such as cursor position, foreground colour, background colour and text style to avoid redundant sequences.
 
 ## Platform boundary

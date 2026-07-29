@@ -40,6 +40,7 @@ function Get-LuxPortableUnitPaths {
         (Join-Path $Root 'src\app'),
         (Join-Path $Root 'src\controls'),
         (Join-Path $Root 'src\layouts'),
+        (Join-Path $Root 'src\appearance'),
         (Join-Path $Root 'tests')
     )
 }

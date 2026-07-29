@@ -14,7 +14,8 @@ uses
   Lux.Events,
   Lux.Control,
   Lux.ControlContainer,
-  Lux.Cursor;
+  Lux.Cursor,
+  Lux.Appearance;
 
 const
   LuxSplitRatioMax = 10000;
@@ -461,9 +462,9 @@ begin
   end;
 
   if FOrientation = loVertical then
-    Ch := UnicodeString(WideChar($2502))
+    Ch := LuxCtxAppearance(Ctx).Glyph(lgBoxV)
   else
-    Ch := UnicodeString(WideChar($2500));
+    Ch := LuxCtxAppearance(Ctx).Glyph(lgBoxH);
 
   Fill := LuxCellMake(Ch, 1, Fg, Bg, []);
   for Y := 0 to DivR.Height - 1 do

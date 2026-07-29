@@ -39,6 +39,7 @@ uses
   Lux.ScrollView,
   Lux.MouseDispatcher,
   Lux.Cursor,
+  Lux.Appearance,
   Lux.TestHarness;
 
 type
@@ -1008,6 +1009,75 @@ begin
     LuxCheckEqualInt(10, C.Width, 'equal expand C');
   finally
     Root.Free;
+  end;
+end;
+
+procedure TestClientAreaAndAppearance;
+var
+  Panel: TLuxPanel;
+  Gb: TLuxGroupBox;
+  Scroll: TLuxScrollView;
+  App: TLuxAppearance;
+  R: TLuxRect;
+  Sz: TLuxSize;
+begin
+  LuxSection('S1 client area / appearance seam');
+
+  App := LuxBuiltinAppearance;
+  LuxCheckEqualStr(UnicodeString(WideChar($250C)), App.Glyph(lgBoxTL), 'builtin TL');
+  LuxCheckEqualStr(UnicodeString(WideChar($2500)), App.Glyph(lgBoxH), 'builtin H');
+  LuxCheckEqualStr('[x]', App.Glyph(lgCheckChecked), 'builtin check');
+  LuxCheckEqualStr('[ ]', App.Glyph(lgCheckUnchecked), 'builtin uncheck');
+  LuxCheckEqualStr('(*)', App.Glyph(lgRadioChecked), 'builtin radio on');
+  LuxCheckEqualStr('( )', App.Glyph(lgRadioUnchecked), 'builtin radio off');
+  LuxCheckEqualStr('[  ON ]', App.Glyph(lgToggleOn), 'builtin toggle on');
+  LuxCheckEqualStr('[ OFF ]', App.Glyph(lgToggleOff), 'builtin toggle off');
+  LuxCheckEqualStr('>', App.Glyph(lgFocusMarker), 'builtin focus');
+  LuxCheck(LuxColorEqual(LuxColorRGB(128, 128, 128), App.Color(lcrTextDisabled)),
+    'builtin disabled color');
+
+  Panel := TLuxPanel.Create(nil);
+  try
+    Panel.BorderStyle := lbsSingle;
+    Panel.SetBounds(0, 0, 20, 10);
+    R := Panel.ClientRect;
+    Sz := Panel.ClientSize;
+    LuxCheckEqualInt(1, R.Left, 'panel client left');
+    LuxCheckEqualInt(1, R.Top, 'panel client top');
+    LuxCheckEqualInt(18, R.Width, 'panel client width');
+    LuxCheckEqualInt(8, R.Height, 'panel client height');
+    LuxCheckEqualInt(R.Width, Sz.Width, 'panel ClientSize W');
+    LuxCheckEqualInt(R.Height, Sz.Height, 'panel ClientSize H');
+  finally
+    Panel.Free;
+  end;
+
+  Gb := TLuxGroupBox.Create(nil);
+  try
+    Gb.SetBounds(0, 0, 16, 8);
+    R := Gb.ClientRect;
+    Sz := Gb.ClientSize;
+    LuxCheckEqualInt(1, R.Left, 'groupbox client left');
+    LuxCheckEqualInt(1, R.Top, 'groupbox client top');
+    LuxCheckEqualInt(14, R.Width, 'groupbox client width');
+    LuxCheckEqualInt(6, R.Height, 'groupbox client height');
+    LuxCheckEqualInt(R.Width, Sz.Width, 'groupbox ClientSize matches');
+  finally
+    Gb.Free;
+  end;
+
+  Scroll := TLuxScrollView.Create(nil);
+  try
+    Scroll.SetBounds(2, 3, 30, 12);
+    R := Scroll.ClientRect;
+    LuxCheckEqualInt(0, R.Left, 'scroll client left');
+    LuxCheckEqualInt(0, R.Top, 'scroll client top');
+    LuxCheckEqualInt(30, R.Width, 'scroll viewport width');
+    LuxCheckEqualInt(12, R.Height, 'scroll viewport height');
+    LuxCheckEqualInt(Scroll.ViewportWidth, R.Width, 'scroll ViewportWidth');
+    LuxCheckEqualInt(Scroll.ViewportHeight, R.Height, 'scroll ViewportHeight');
+  finally
+    Scroll.Free;
   end;
 end;
 
@@ -2461,6 +2531,7 @@ begin
   TestControlGeometryAndHit;
   TestControlFocus;
   TestLayoutEngine;
+  TestClientAreaAndAppearance;
   TestStackLayout;
   TestCursorManager;
   TestSplitGeometryAndHit;

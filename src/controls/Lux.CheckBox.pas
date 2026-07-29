@@ -11,7 +11,8 @@ uses
   Lux.Color,
   Lux.Cell,
   Lux.Control,
-  Lux.Events;
+  Lux.Events,
+  Lux.Appearance;
 
 type
   TLuxCheckBox = class(TLuxControl)
@@ -97,16 +98,18 @@ end;
 
 function TLuxCheckBox.Caption: UnicodeString;
 var
+  App: TLuxAppearance;
   Mark: UnicodeString;
 begin
+  App := LuxBuiltinAppearance;
   if FChecked then
-    Mark := '[x] '
+    Mark := App.Glyph(lgCheckChecked) + ' '
   else
-    Mark := '[ ] ';
+    Mark := App.Glyph(lgCheckUnchecked) + ' ';
   if HasFocus and IsEffectivelyEnabled then
-    Result := '>' + Mark + FText
+    Result := App.Glyph(lgFocusMarker) + Mark + FText
   else
-    Result := ' ' + Mark + FText;
+    Result := App.Glyph(lgFocusPad) + Mark + FText;
 end;
 
 function TLuxCheckBox.ResolveColors(out Fg, Bg: TLuxColor): TLuxTextStyle;

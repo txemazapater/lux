@@ -109,8 +109,7 @@ end;
 procedure TLuxPanel.Paint(const Ctx: TLuxPaintContext);
 var
   Fill: TLuxCell;
-  X, Y, W, H: Integer;
-  Ch: UnicodeString;
+  W, H: Integer;
 begin
   W := Width;
   H := Height;
@@ -122,27 +121,7 @@ begin
 
   if FBorderStyle <> lbsSingle then
     Exit;
-  if (W < 2) or (H < 2) then
-    Exit;
-
-  { Box-drawing: U+250C U+2510 U+2514 U+2518 U+2500 U+2502 }
-  LuxPaintText(Ctx, 0, 0, UnicodeString(WideChar($250C)), FForeground, FBackground, []);
-  LuxPaintText(Ctx, W - 1, 0, UnicodeString(WideChar($2510)), FForeground, FBackground, []);
-  LuxPaintText(Ctx, 0, H - 1, UnicodeString(WideChar($2514)), FForeground, FBackground, []);
-  LuxPaintText(Ctx, W - 1, H - 1, UnicodeString(WideChar($2518)), FForeground, FBackground, []);
-
-  Ch := UnicodeString(WideChar($2500));
-  for X := 1 to W - 2 do
-  begin
-    LuxPaintText(Ctx, X, 0, Ch, FForeground, FBackground, []);
-    LuxPaintText(Ctx, X, H - 1, Ch, FForeground, FBackground, []);
-  end;
-  Ch := UnicodeString(WideChar($2502));
-  for Y := 1 to H - 2 do
-  begin
-    LuxPaintText(Ctx, 0, Y, Ch, FForeground, FBackground, []);
-    LuxPaintText(Ctx, W - 1, Y, Ch, FForeground, FBackground, []);
-  end;
+  LuxPaintSingleLineBorder(Ctx, W, H, FForeground, FBackground);
 end;
 
 end.

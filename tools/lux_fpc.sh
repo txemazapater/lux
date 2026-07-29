@@ -60,6 +60,7 @@ lux_portable_paths() {
     "$root/src/app" \
     "$root/src/controls" \
     "$root/src/layouts" \
+    "$root/src/appearance" \
     "$root/tests"
 }
 

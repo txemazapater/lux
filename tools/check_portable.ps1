@@ -8,7 +8,8 @@ $paths = @(
     (Join-Path $Root 'src\events'),
     (Join-Path $Root 'src\app'),
     (Join-Path $Root 'src\controls'),
-    (Join-Path $Root 'src\layouts')
+    (Join-Path $Root 'src\layouts'),
+    (Join-Path $Root 'src\appearance')
 )
 $pattern = 'uses\s+Windows\b|Windows\.|GetConsoleMode|SetConsoleMode|termios|kernel32'
 $failed = $false

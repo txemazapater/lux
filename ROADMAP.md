@@ -301,13 +301,11 @@ Git support, repository models and editor semantics belong to the consumer appli
 
 ## Current priority
 
-**Technical pause — architecture review (2026-07).** Implementation of new Phase 6 controls is suspended until the capability map is adopted.
+**S1 complete.** Next: **S2 — Range model**, then ProgressBar/Slider on Range.
 
 - Record: [`docs/architecture-review-2026-07.md`](docs/architecture-review-2026-07.md)
-- Phases **0–6D** remain the implemented baseline (Separator / Toggle / GroupBox included).
+- S1 ADR: [`docs/adr/0015-client-area-appearance-seam.md`](docs/adr/0015-client-area-appearance-seam.md)
+- Phases **0–6D** + **S1** are the implemented baseline.
 - **Do not start old 6E (ProgressBar/Slider)** without a Range model.
-- **Do not treat “finish 6E–6J then Phase 7 Appearance” as the default path.**
-
-**Recommended next implementation slice:** **S1 — Shared container & paint contracts** (stabilize client area / `ContentOffset`, thin in-memory appearance seam for glyphs/roles). Then **S2 — Range model**, then ProgressBar/Slider.
 
 Phase 5.2.1 deferred resize remains experimental. Do not pull consumer-application (Lantern) widgets into the LUX core.

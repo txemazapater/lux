@@ -68,7 +68,9 @@ LUX does not select, install or persist terminal fonts. The emulator and user ow
 
 ### Implementation increments
 
-7A model → 7B integration/migration → 7C external files → 7D path discovery → 7E acceptance demo. Suggested units under `src/appearance/`. Platform path discovery may use `src/platform/windows` and `src/platform/unix` behind a portable API.
+**S1 (done):** thin in-memory `TLuxAppearance` + paint-context injection + glyph/role IDs matching Phase 6 literals (`docs/adr/0015-client-area-appearance-seam.md`). No files.
+
+Then: 7A model → 7B integration/migration → 7C external files → 7D path discovery → 7E acceptance demo. Suggested units under `src/appearance/`. Platform path discovery may use `src/platform/windows` and `src/platform/unix` behind a portable API.
 
 ## Consequences
 

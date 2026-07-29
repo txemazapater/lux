@@ -11,7 +11,8 @@ uses
   Lux.Color,
   Lux.Cell,
   Lux.Surface,
-  Lux.Events;
+  Lux.Events,
+  Lux.Appearance;
 
 type
   ELuxControl = class(Exception);
@@ -19,12 +20,13 @@ type
   TLuxNotifyEvent = procedure(Sender: TObject) of object;
 
   { Lightweight paint target: root surface, local origin in surface coords,
-    and an absolute clip rectangle. No surface copies. }
+    absolute clip, and optional appearance (nil = builtin). No surface copies. }
   TLuxPaintContext = record
     Surface: TLuxSurface;
     OriginX: Integer;
     OriginY: Integer;
     Clip: TLuxRect;
+    Appearance: TLuxAppearance;
   end;
 
   TLuxControlStyle = record
@@ -101,8 +103,6 @@ type
     procedure DetachChild(AChild: TLuxControl); virtual;
     procedure NotifyHostInvalidate;
     function ContentOffset: TLuxPoint; virtual;
-    { Size available for children after ContentOffset inset (symmetric). }
-    function ClientSize: TLuxSize; virtual;
     procedure Paint(const Ctx: TLuxPaintContext); virtual;
     function DoHandleEvent(const Event: TLuxEvent): Boolean; virtual;
     procedure BoundsChanged; virtual;
@@ -121,6 +121,10 @@ type
     function BuildPaintContext(ATarget: TLuxSurface;
       const AParentCtx: TLuxPaintContext; AHasParentCtx: Boolean): TLuxPaintContext;
     procedure ApplyFocusState(AHasFocus: Boolean);
+
+    { Client area in control-local coords (origin = ContentOffset). }
+    function ClientRect: TLuxRect; virtual;
+    function ClientSize: TLuxSize; virtual;
 
     procedure SetBounds(const ABounds: TLuxRect); overload;
     procedure SetBounds(ALeft, ATop, AWidth, AHeight: Integer); overload;
@@ -184,32 +188,45 @@ type
 
 function LuxDefaultControlStyle: TLuxControlStyle;
 function LuxPaintContext(ASurface: TLuxSurface; AOriginX, AOriginY: Integer;
-  const AClip: TLuxRect): TLuxPaintContext;
+  const AClip: TLuxRect; AAppearance: TLuxAppearance = nil): TLuxPaintContext;
+function LuxCtxAppearance(const Ctx: TLuxPaintContext): TLuxAppearance;
 procedure LuxPaintFill(const Ctx: TLuxPaintContext; const ALocalRect: TLuxRect;
   const ACell: TLuxCell);
 procedure LuxPaintText(const Ctx: TLuxPaintContext; AX, AY: Integer;
   const AText: UnicodeString; const AForeground, ABackground: TLuxColor;
   const AStyle: TLuxTextStyle);
+{ Draw a one-cell box border using appearance box glyphs (same look as Phase 6). }
+procedure LuxPaintSingleLineBorder(const Ctx: TLuxPaintContext;
+  AWidth, AHeight: Integer; const AForeground, ABackground: TLuxColor);
 
 implementation
 
 function LuxDefaultControlStyle: TLuxControlStyle;
 begin
-  Result.Foreground := LuxColorDefault;
-  Result.Background := LuxColorDefault;
-  Result.FocusForeground := LuxColorRGB(0, 0, 0);
-  Result.FocusBackground := LuxColorRGB(200, 200, 200);
-  Result.DisabledForeground := LuxColorRGB(128, 128, 128);
-  Result.DisabledBackground := LuxColorDefault;
+  Result.Foreground := LuxBuiltinAppearance.Color(lcrText);
+  Result.Background := LuxBuiltinAppearance.Color(lcrSurface);
+  Result.FocusForeground := LuxBuiltinAppearance.Color(lcrFocusForeground);
+  Result.FocusBackground := LuxBuiltinAppearance.Color(lcrFocusBackground);
+  Result.DisabledForeground := LuxBuiltinAppearance.Color(lcrTextDisabled);
+  Result.DisabledBackground := LuxBuiltinAppearance.Color(lcrSurface);
 end;
 
 function LuxPaintContext(ASurface: TLuxSurface; AOriginX, AOriginY: Integer;
-  const AClip: TLuxRect): TLuxPaintContext;
+  const AClip: TLuxRect; AAppearance: TLuxAppearance): TLuxPaintContext;
 begin
   Result.Surface := ASurface;
   Result.OriginX := AOriginX;
   Result.OriginY := AOriginY;
   Result.Clip := AClip;
+  Result.Appearance := AAppearance;
+end;
+
+function LuxCtxAppearance(const Ctx: TLuxPaintContext): TLuxAppearance;
+begin
+  if Ctx.Appearance <> nil then
+    Result := Ctx.Appearance
+  else
+    Result := LuxBuiltinAppearance;
 end;
 
 procedure LuxPaintFill(const Ctx: TLuxPaintContext; const ALocalRect: TLuxRect;
@@ -279,6 +296,35 @@ begin
     Primary := LuxCellMake(Glyph, W, AForeground, ABackground, AStyle);
     Ctx.Surface.PutCell(CursorX, AbsY, Primary);
     Inc(CursorX, W);
+  end;
+end;
+
+procedure LuxPaintSingleLineBorder(const Ctx: TLuxPaintContext;
+  AWidth, AHeight: Integer; const AForeground, ABackground: TLuxColor);
+var
+  App: TLuxAppearance;
+  X, Y: Integer;
+  Ch: UnicodeString;
+begin
+  if (AWidth < 2) or (AHeight < 2) then
+    Exit;
+  App := LuxCtxAppearance(Ctx);
+  LuxPaintText(Ctx, 0, 0, App.Glyph(lgBoxTL), AForeground, ABackground, []);
+  LuxPaintText(Ctx, AWidth - 1, 0, App.Glyph(lgBoxTR), AForeground, ABackground, []);
+  LuxPaintText(Ctx, 0, AHeight - 1, App.Glyph(lgBoxBL), AForeground, ABackground, []);
+  LuxPaintText(Ctx, AWidth - 1, AHeight - 1, App.Glyph(lgBoxBR), AForeground,
+    ABackground, []);
+  Ch := App.Glyph(lgBoxH);
+  for X := 1 to AWidth - 2 do
+  begin
+    LuxPaintText(Ctx, X, 0, Ch, AForeground, ABackground, []);
+    LuxPaintText(Ctx, X, AHeight - 1, Ch, AForeground, ABackground, []);
+  end;
+  Ch := App.Glyph(lgBoxV);
+  for Y := 1 to AHeight - 2 do
+  begin
+    LuxPaintText(Ctx, 0, Y, Ch, AForeground, ABackground, []);
+    LuxPaintText(Ctx, AWidth - 1, Y, Ch, AForeground, ABackground, []);
   end;
 end;
 
@@ -355,16 +401,27 @@ begin
   Result := LuxPoint(0, 0);
 end;
 
-function TLuxControl.ClientSize: TLuxSize;
+function TLuxControl.ClientRect: TLuxRect;
 var
   Off: TLuxPoint;
+  W, H: Integer;
 begin
   Off := ContentOffset;
-  Result := LuxSize(FBounds.Width - Off.X * 2, FBounds.Height - Off.Y * 2);
-  if Result.Width < 0 then
-    Result.Width := 0;
-  if Result.Height < 0 then
-    Result.Height := 0;
+  W := FBounds.Width - Off.X * 2;
+  H := FBounds.Height - Off.Y * 2;
+  if W < 0 then
+    W := 0;
+  if H < 0 then
+    H := 0;
+  Result := LuxRect(Off.X, Off.Y, W, H);
+end;
+
+function TLuxControl.ClientSize: TLuxSize;
+var
+  R: TLuxRect;
+begin
+  R := ClientRect;
+  Result := LuxSize(R.Width, R.Height);
 end;
 
 procedure TLuxControl.HandleChildLayoutHintsChanged(AChild: TLuxControl);
@@ -631,6 +688,10 @@ begin
     ParentClip := LuxRect(0, 0, 0, 0);
   Result := LuxPaintContext(ATarget, Origin.X, Origin.Y,
     LuxRectIntersect(AbsBounds, ParentClip));
+  if AHasParentCtx then
+    Result.Appearance := AParentCtx.Appearance
+  else
+    Result.Appearance := nil;
 end;
 
 procedure TLuxControl.Paint(const Ctx: TLuxPaintContext);

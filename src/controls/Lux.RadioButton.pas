@@ -12,7 +12,8 @@ uses
   Lux.Cell,
   Lux.Control,
   Lux.ControlContainer,
-  Lux.Events;
+  Lux.Events,
+  Lux.Appearance;
 
 type
   TLuxRadioButton = class(TLuxControl)
@@ -136,16 +137,18 @@ end;
 
 function TLuxRadioButton.Caption: UnicodeString;
 var
+  App: TLuxAppearance;
   Mark: UnicodeString;
 begin
+  App := LuxBuiltinAppearance;
   if FChecked then
-    Mark := '(*) '
+    Mark := App.Glyph(lgRadioChecked) + ' '
   else
-    Mark := '( ) ';
+    Mark := App.Glyph(lgRadioUnchecked) + ' ';
   if HasFocus and IsEffectivelyEnabled then
-    Result := '>' + Mark + FText
+    Result := App.Glyph(lgFocusMarker) + Mark + FText
   else
-    Result := ' ' + Mark + FText;
+    Result := App.Glyph(lgFocusPad) + Mark + FText;
 end;
 
 function TLuxRadioButton.ResolveColors(out Fg, Bg: TLuxColor): TLuxTextStyle;

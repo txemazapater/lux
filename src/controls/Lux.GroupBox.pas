@@ -35,7 +35,6 @@ type
     procedure Paint(const Ctx: TLuxPaintContext); override;
   public
     constructor Create(AParent: TLuxControl = nil);
-    function ClientRect: TLuxRect;
 
     property Text: UnicodeString read FText write SetText;
     property Foreground: TLuxColor read FForeground write SetForeground;
@@ -44,14 +43,8 @@ type
 
 implementation
 
-{ Temporary Phase 6 box-drawing glyphs (same codepoints as TLuxPanel). }
-const
-  LuxGbTL = WideChar($250C); { ┌ }
-  LuxGbTR = WideChar($2510); { ┐ }
-  LuxGbBL = WideChar($2514); { └ }
-  LuxGbBR = WideChar($2518); { ┘ }
-  LuxGbH = WideChar($2500);  { ─ }
-  LuxGbV = WideChar($2502);  { │ }
+uses
+  Lux.Appearance;
 
 function LuxGbDisplayWidth(const S: UnicodeString): Integer;
 var
@@ -166,19 +159,6 @@ begin
   Result := LuxPoint(1, 1);
 end;
 
-function TLuxGroupBox.ClientRect: TLuxRect;
-var
-  W, H: Integer;
-begin
-  W := Width - 2;
-  H := Height - 2;
-  if W < 0 then
-    W := 0;
-  if H < 0 then
-    H := 0;
-  Result := LuxRect(1, 1, W, H);
-end;
-
 procedure TLuxGroupBox.BoundsChanged;
 var
   I: Integer;
@@ -209,6 +189,7 @@ end;
 procedure TLuxGroupBox.Paint(const Ctx: TLuxPaintContext);
 var
   Fill: TLuxCell;
+  App: TLuxAppearance;
   X, Y, W, H, MaxTitleCells, TitleCells: Integer;
   Ch: UnicodeString;
   Fg: TLuxColor;
@@ -219,9 +200,10 @@ begin
   if (W <= 0) or (H <= 0) then
     Exit;
 
+  App := LuxCtxAppearance(Ctx);
   Fg := FForeground;
   if not IsEffectivelyEnabled then
-    Fg := LuxColorRGB(128, 128, 128);
+    Fg := App.Color(lcrTextDisabled);
 
   Fill := LuxCellMake(' ', 1, Fg, FBackground, []);
   LuxPaintFill(Ctx, LuxRect(0, 0, W, H), Fill);
@@ -229,22 +211,20 @@ begin
   if (W < 2) or (H < 2) then
     Exit;
 
-  { Edges first (including corner cells as horizontals/verticals placeholders). }
-  Ch := UnicodeString(LuxGbH);
+  { Edges first; corners overwritten last (title may touch top edge cells). }
+  Ch := App.Glyph(lgBoxH);
   for X := 0 to W - 1 do
   begin
     LuxPaintText(Ctx, X, 0, Ch, Fg, FBackground, []);
     LuxPaintText(Ctx, X, H - 1, Ch, Fg, FBackground, []);
   end;
-  Ch := UnicodeString(LuxGbV);
+  Ch := App.Glyph(lgBoxV);
   for Y := 1 to H - 2 do
   begin
     LuxPaintText(Ctx, 0, Y, Ch, Fg, FBackground, []);
     LuxPaintText(Ctx, W - 1, Y, Ch, Fg, FBackground, []);
   end;
 
-  { Title into top border between corners: " Title " clipped by cell columns.
-    Never write into column 0 or W-1. }
   if (FText <> '') and (W >= 5) then
   begin
     MaxTitleCells := W - 4;
@@ -259,11 +239,10 @@ begin
     end;
   end;
 
-  { Corners last so a long / wide title cannot corrupt them. }
-  LuxPaintText(Ctx, 0, 0, UnicodeString(LuxGbTL), Fg, FBackground, []);
-  LuxPaintText(Ctx, W - 1, 0, UnicodeString(LuxGbTR), Fg, FBackground, []);
-  LuxPaintText(Ctx, 0, H - 1, UnicodeString(LuxGbBL), Fg, FBackground, []);
-  LuxPaintText(Ctx, W - 1, H - 1, UnicodeString(LuxGbBR), Fg, FBackground, []);
+  LuxPaintText(Ctx, 0, 0, App.Glyph(lgBoxTL), Fg, FBackground, []);
+  LuxPaintText(Ctx, W - 1, 0, App.Glyph(lgBoxTR), Fg, FBackground, []);
+  LuxPaintText(Ctx, 0, H - 1, App.Glyph(lgBoxBL), Fg, FBackground, []);
+  LuxPaintText(Ctx, W - 1, H - 1, App.Glyph(lgBoxBR), Fg, FBackground, []);
 end;
 
 end.

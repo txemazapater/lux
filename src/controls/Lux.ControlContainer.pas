@@ -215,7 +215,7 @@ var
 begin
   Off := ContentOffset;
   ClientAbs := LuxRect(Ctx.OriginX + Off.X, Ctx.OriginY + Off.Y,
-    Width - (Off.X * 2), Height - (Off.Y * 2));
+    ClientSize.Width, ClientSize.Height);
   if (ClientAbs.Width < 0) or (ClientAbs.Height < 0) then
     Exit;
   ChildClip := LuxRectIntersect(Ctx.Clip, ClientAbs);

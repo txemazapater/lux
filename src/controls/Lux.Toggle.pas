@@ -11,7 +11,8 @@ uses
   Lux.Color,
   Lux.Cell,
   Lux.Control,
-  Lux.Events;
+  Lux.Events,
+  Lux.Appearance;
 
 type
   { Terminal representation: "[ OFF ] text" / "[  ON ] text" with optional
@@ -65,9 +66,9 @@ end;
 function TLuxToggle.Indicator: UnicodeString;
 begin
   if FChecked then
-    Result := '[  ON ]'
+    Result := LuxBuiltinAppearance.Glyph(lgToggleOn)
   else
-    Result := '[ OFF ]';
+    Result := LuxBuiltinAppearance.Glyph(lgToggleOff);
 end;
 
 procedure TLuxToggle.UpdatePreferredSize;
@@ -113,15 +114,17 @@ end;
 
 function TLuxToggle.Caption: UnicodeString;
 var
+  App: TLuxAppearance;
   Body: UnicodeString;
 begin
+  App := LuxBuiltinAppearance;
   Body := Indicator;
   if FText <> '' then
     Body := Body + ' ' + FText;
   if HasFocus and IsEffectivelyEnabled then
-    Result := '>' + Body
+    Result := App.Glyph(lgFocusMarker) + Body
   else
-    Result := ' ' + Body;
+    Result := App.Glyph(lgFocusPad) + Body;
 end;
 
 function TLuxToggle.ResolveColors(out Fg, Bg: TLuxColor): TLuxTextStyle;

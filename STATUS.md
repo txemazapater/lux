@@ -4,37 +4,37 @@ Last updated: 2026-07-29
 
 ## Current phase
 
-**Technical pause — architecture review**
+**S1 — Shared container & paint contracts** — **complete**
 
-Implementation of new controls is suspended. Capability map and sequencing:
-
-- [`docs/architecture-review-2026-07.md`](docs/architecture-review-2026-07.md)
+Invisible to applications: same glyphs/colors as before. Next: **S2 — Range model**.
 
 ## Implemented baseline
 
-Phases 0–5, 5.1, 5.2, 6A, **6B.1–6B.4**, **6C**, and **6D** (Label, CheckBox, RadioButton, Separator, Toggle, GroupBox).
+Phases 0–5, 5.1, 5.2, 6A–6D, **S1**. Phase 5.2.1 deferred resize remains experimental.
 
-Phase 5.2.1 deferred resize remains experimental.
+## S1 summary
 
-## Next (after adopting the review)
+- Public `ClientRect` / `ClientSize` contract on `TLuxControl`
+- `Lux.Appearance` builtin roles/glyphs; paint context carries appearance
+- Panel/GroupBox/Separator/CheckBox/Radio/Toggle/Split consume the seam
+- ADR: `docs/adr/0015-client-area-appearance-seam.md`
 
-1. **S1** — Shared container & paint contracts (client area, thin appearance seam)
-2. **S2** — Range model
-3. ProgressBar / Slider on Range
+## Next
 
-**Do not start old Phase 6E as previously worded.**
+1. **S2** — Range model  
+2. ProgressBar / Slider on Range  
 
-## Verified (latest local)
+Do **not** start old Phase 6E without Range.
+
+## Verified
 
 | Item | Result |
 |------|--------|
-| Host (dev) | Windows x86_64 FPC 3.2.2 |
-| Portable tests | **567 passed** (after GroupBox border fixes) |
-| `form_demo` | layout columns; visual OK for GroupBox borders |
+| Portable tests | **594 passed** |
+| Visual | unchanged by design (framework-only S1) |
 
 ## Commands
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\test.ps1
-powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Target form-demo
 ```

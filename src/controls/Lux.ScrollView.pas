@@ -138,6 +138,7 @@ end;
 
 function TLuxScrollView.ContentOffset: TLuxPoint;
 begin
+  { Viewport is the full control bounds until scrollbar chrome exists. }
   Result := LuxPoint(0, 0);
 end;
 
