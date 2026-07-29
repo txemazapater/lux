@@ -6,7 +6,22 @@
 
 > Define now what conditions many future pieces; defer what can be added later without breaking existing contracts.
 
-**Note on naming:** The first consumer application is **Lantern** in repository docs. Where this review says “Lantern / Lighthouse”, treat them as the same intended product family unless a later ADR splits them.
+### Naming and product boundaries
+
+These names refer to different architectural levels and must not be used interchangeably:
+
+| Name | Role |
+|------|------|
+| **LUX** | Technical name of the framework and this codebase |
+| **Lighthouse** | Provisional commercial / public-facing name of LUX (same product, different label) |
+| **Lantern** | Provisional name of a possible future *application* built on LUX/Lighthouse. Lantern does not currently exist. It is a consumer, not part of the framework |
+
+Therefore:
+
+- LUX and Lighthouse may refer to the same product from technical and commercial perspectives respectively.
+- Lantern must remain architecturally separate from LUX.
+- Lantern-specific models, commands, persistence, panels and workflows must not enter the LUX core.
+- This document must not treat “Lantern” and “Lighthouse” as synonyms.
 
 **Note on Phase 6D:** Separator, Toggle and GroupBox are **already implemented**. The review treats them as present, not as pending controls.
 
@@ -38,7 +53,7 @@ More precisely, it is the combination of:
 | Backend-independent UI engine | **Partially** | Logic is portable; first-class output is ANSI/VT cell terminals |
 | Full application architecture | **No** | No document model, no domain services, no plugin host |
 
-LUX is **not** a GUI framework, not a terminal emulator, and not a product (Lantern is).
+LUX (commercially referred to as **Lighthouse**) is **not** a GUI framework and **not** a terminal emulator. It is the framework product. **Lantern** would be a separate consumer application, not a synonym for Lighthouse.
 
 ### 1.2 Applications it aims to support
 
@@ -52,7 +67,7 @@ LUX is **not** a GUI framework, not a terminal emulator, and not a product (Lant
 - Split / (later) dockable layouts
 - Editors and explorers **as consumers**, once editing/list/tree primitives exist
 
-**Primary consumer:** Lantern (Git-oriented terminal workbench).
+**Possible future consumer (provisional):** Lantern — a Git-oriented terminal workbench. It does not exist yet and must not define LUX APIs.
 
 ### 1.3 Architectural properties to protect
 
@@ -88,13 +103,15 @@ LUX is **not** a GUI framework, not a terminal emulator, and not a product (Lant
 - Automation / accessibility bridges
 - Alternate render backends (if ever)
 
-**Lantern / application (must not enter LUX core):**
+**Consumer applications such as Lantern (must not enter LUX core):**
 
 - Git document model, staging, diff, history, branches
 - Repository workspace and process integration
 - Product-specific panels and commands
-- Session persistence keyed to Lantern product identity
+- Session persistence keyed to that application’s identity
 - Specialized editors (commit message semantics, etc.)
+
+Lighthouse branding, packaging and public naming are product concerns for LUX itself; they are not a separate framework layer and are not Lantern.
 
 ### 1.5 Explicit non-goals (near term)
 
@@ -114,7 +131,7 @@ LUX is **not** a GUI framework, not a terminal emulator, and not a product (Lant
 ### 2.1 Layers (current + target)
 
 ```text
-Applications (Lantern, demos)
+Applications (demos; future consumers such as Lantern)
   -> Controls / Layouts / (future Appearance consumers)
     -> ControlApplication / Focus / MouseDispatcher
       -> Application loop / EventQueue / Timers
@@ -158,7 +175,7 @@ Applications (Lantern, demos)
 - Backend → control types
 - Renderer → mouse/focus policy
 - Commands → specific Button class as sole definition of an action
-- Lantern domain types → `src/` LUX units
+- Consumer-app domain types (e.g. Lantern Git models) → `src/` LUX units
 - Demos (`examples/debug`) → treated as stable public API
 
 ### 2.4 Trees: one tree for now
@@ -182,7 +199,7 @@ Do not let each new container invent a different inset rule.
 
 ## 3. Capability Matrix
 
-Legend — **Class:** C = core, O = optional framework, A = application (Lantern).  
+Legend — **Class:** C = core, O = optional framework, A = consumer application (e.g. Lantern).  
 **State:** done / partial / planned / missing / experimental.
 
 | Capability | Class | Owner | State | Depends on | Consumers | Phase hint | Decide by | Early risk | Late risk |
@@ -213,21 +230,21 @@ Legend — **Class:** C = core, O = optional framework, A = application (Lantern
 | Popups / overlays | C/O | missing | missing | focus, hit, z | menus, combo, tip | **before 6G** | before menus | second tree early | hit-test nightmares |
 | Dialogs / tooltips | O | missing | missing | overlay, focus | apps | after overlay | — | — | — |
 | Tabs | O | missing | missing | client area | apps | after client area | — | — | — |
-| Lists / tables / trees | O | missing | missing | selection, scroll, virt | Lantern | after scroll+selection | — | — | — |
+| Lists / tables / trees | O | missing | missing | selection, scroll, virt | consumers (e.g. Lantern) | after scroll+selection | — | — | — |
 | Virtualization | O | missing | missing | scroll | large lists | with lists | — | — | — |
 | Timers | C | TimerScheduler | done | clock | app, later caret | 4 | — | — | — |
-| Async tasks | O | missing | missing | UI dispatch | Git ops | Lantern readiness | before heavy Git UI | threads in core | update-from-worker bugs |
+| Async tasks | O | missing | missing | UI dispatch | long-running app work | Phase 9 / consumers | before heavy async UI | threads in core | update-from-worker bugs |
 | Clipboard | C | missing | missing | platform | edit, paste | before TextBox | — | — | — |
 | Drag-drop data | O | missing | missing | capture | docking, files | late | after docking need | — | — |
 | Persistence / config | O | missing | missing | — | themes, layout | interfaces in LUX | before docking persist | Registry temptation | ad-hoc files |
 | Layout serialization | O | missing | missing | split tree | docking, workspace | before 6J persist | before docking | — | irreversible layouts |
-| Docking | O | missing | missing | split persist, overlay? | Lantern | late optional | after persist model | docking-first | rewrite splits |
+| Docking | O | missing | missing | split persist, overlay? | multi-panel apps | late optional | after persist model | docking-first | rewrite splits |
 | Diagnostics | O | demos only | partial | — | developers | Phase 8 | — | — | — |
 | Visual testing | O | surface tests | partial | surface | CI | grow with controls | — | golden hell | regressions |
 | Accessibility | O | keyboard only | partial | focus | all | incremental | — | screen-reader promises | unusable TUIs |
 | i18n / Unicode | C | width approx | partial | cell width | text, layout | continuous | cursor unit before edit | wrong cursor unit | editor rewrite |
 | Automation | O | missing | missing | — | tests | late | — | — | — |
-| Lantern integration | A | — | — | LUX contracts | Lantern | Phase 9 | — | domain in core | — |
+| Consumer app integration | A | — | — | LUX contracts | e.g. Lantern | Phase 9 | — | domain in core | — |
 
 ---
 
@@ -268,8 +285,9 @@ Legend — **Class:** C = core, O = optional framework, A = application (Lantern
 ### Navigation / collection / edit / menus / overlays
 Mostly **missing**; require selection, scroll, text, commands, overlay as per matrix.
 
-### Lantern-specific
-RepositoryTree, StagingView, DiffView, CommitEditor, etc. — **application**, built on LUX list/tree/edit/split/command primitives.
+### Consumer-application controls (e.g. provisional Lantern)
+
+RepositoryTree, StagingView, DiffView, CommitEditor, etc. — **application layer**, built on LUX list/tree/edit/split/command primitives. Not LUX core. Not Lighthouse (commercial name of LUX).
 
 ---
 
@@ -287,7 +305,7 @@ RepositoryTree, StagingView, DiffView, CommitEditor, etc. — **application**, b
 | **Item model** | Minimal interfaces later; no binding framework | Premature abstraction risk | with ListBox |
 | **Text model** | **Separate subsystem** | Not a `Text` property | own phase before CodeEditor |
 | **Validation** | Defer | Few consumers | with forms/dialogs |
-| **Async task** | Contracts in LUX optional; threads careful | Lantern needs progress/cancel | before heavy Git UI |
+| **Async task** | Contracts in LUX optional; threads careful | Consumers may need progress/cancel | before heavy async UI |
 | **Persistable layout** | Model before docking UI | Split ratios already exist | before 6J / docking |
 | **Overlay manager** | Required before menus/tooltips | Focus + hit-test | before 6G |
 
@@ -320,7 +338,7 @@ Splitter / Docking / Workspace
 Menu / Combo / Tooltip / ContextMenu
         └──> Overlay layer + Focus scope
 
-Git ops / Search / Index (Lantern)
+Git ops / Search / Index (consumer apps such as Lantern)
         └──> Async task + UI marshal
 ```
 
@@ -353,10 +371,10 @@ Keep completed work as history (0–6D). Re-slice **remaining** work:
 | **S10** | Grid layout | old 6I |
 | **S11** | Persistable split tree | old 6J |
 | **A1–A5** | Full Appearance (built-ins → files → paths → demo) | old Phase 7, can interleave after S1 |
-| **E\*** | Editing infrastructure | before Lantern editor |
-| **C\*** | Collection + selection + virtualization | before Lantern tree/list |
+| **E\*** | Editing infrastructure | before consumer editors |
+| **C\*** | Collection + selection + virtualization | before consumer tree/list |
 | **D\*** | Docking host (optional package?) | after S11 |
-| **L\*** | Lantern readiness contracts | old Phase 9 |
+| **L\*** | Consumer readiness contracts (e.g. for Lantern) | old Phase 9 |
 | **U\*** | Developer usability / diagnostics | old Phase 8 |
 
 **Phase 6 as a monolith “layout + all common controls” should end at 6D.** Remaining items are cross-cutting infrastructure plus controls that consume it.
@@ -399,7 +417,7 @@ Keep completed work as history (0–6D). Re-slice **remaining** work:
 | D10 | Overlay ownership? | Application/OverlayManager, not each menu | S6 | no if menus |
 | D11 | Modality home? | Overlay/focus scope, not every dialog class | S6 | — |
 | D12 | Timers? | Keep app scheduler (done) | — | — |
-| D13 | Async? | Interface + marshal-to-UI; no raw thread UI | before Lantern Git | yes short-term |
+| D13 | Async? | Interface + marshal-to-UI; no raw thread UI | before heavy consumer async | yes short-term |
 | D14 | Clipboard? | Platform service, text first | before TextBox | yes until edit |
 | D15 | DnD payloads? | Defer | docking need | yes |
 | D16 | Persistence? | LUX interfaces; app stores bytes/files | before layout persist | — |
@@ -483,11 +501,12 @@ Appearance **file loading** (old 7C–7D) stays after more controls stabilize ag
 
 | Question | Answer |
 |----------|--------|
-| What is LUX? | Portable Free Pascal TUI framework + control toolkit over a cell surface and ANSI backends |
+| What is LUX? | Portable Free Pascal TUI framework + control toolkit over a cell surface and ANSI backends (commercial name: Lighthouse) |
 | Architecture to protect? | Layered deps, normalized input, semantic gestures, portable controls, differential render |
 | Core? | Geometry→surface→render→platform session/events→app loop→tree/focus/layout/gestures |
 | Optional? | Advanced controls, docking, theme files, diagnostics, automation |
-| Lantern? | Git/workbench domain, product panels, product persistence |
+| Lighthouse? | Provisional commercial name of LUX — same product, not a separate codebase |
+| Lantern? | Possible future consumer app (Git/workbench domain); does not exist yet; must not enter LUX core |
 | Provisional today? | Glyphs/colors, deferred resize, demo EventLog, no overlays/commands/range |
 | Contracts before more controls? | Client area, thin appearance seam, Range, (soon) Command + Overlay |
 | Shared capabilities? | Client area, Range, Scroll, Command, Overlay; not a universal Selection |

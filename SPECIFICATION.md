@@ -271,8 +271,12 @@ The first milestone is complete when an example program can:
 7. Build and run on Windows and Linux.
 8. Pass unit tests for the portable rendering core.
 
-## 11. First consumer application
+## 11. Naming and first consumer application
 
-The first substantial application built on LUX will be Lantern, a Git-oriented terminal editor and developer workbench.
+| Name | Meaning |
+|------|---------|
+| **LUX** | Technical name of the framework and codebase |
+| **Lighthouse** | Provisional commercial / public-facing name of LUX (same product) |
+| **Lantern** | Provisional name of a possible future application on top of LUX — not part of the framework |
 
-Lantern is a consumer of LUX and must not drive Git-specific concerns into the LUX core.
+A possible substantial consumer is Lantern: a Git-oriented terminal editor and developer workbench. Lantern does not currently exist. It must remain a consumer of LUX and must not drive Git-specific concerns into the LUX core. Do not use “Lantern” and “Lighthouse” as synonyms.

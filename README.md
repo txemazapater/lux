@@ -8,6 +8,16 @@ The project is written in **Free Pascal**, is **open source**, and treats the te
 
 > Let there be light in the terminal.
 
+## Naming
+
+| Name | Role |
+|------|------|
+| **LUX** | Technical name of the framework and this codebase |
+| **Lighthouse** | Provisional commercial / public-facing name for the same LUX product |
+| **Lantern** | Provisional name of a possible future *application* built on LUX — not part of the framework and not a synonym for Lighthouse |
+
+Lantern-specific models, panels, commands and workflows must not enter the LUX core.
+
 ## Vision
 
 LUX will provide the foundations needed to build rich console applications with:
@@ -22,7 +32,7 @@ LUX will provide the foundations needed to build rich console applications with:
 - Cross-platform support
 - A clean, Pascal-friendly API
 
-The first real application built with LUX is expected to be **Lantern**, a Git-oriented terminal editor and developer workbench.
+A possible future consumer application is **Lantern** (provisional name): a Git-oriented terminal editor and developer workbench. It does not exist yet and remains architecturally separate from LUX/Lighthouse.
 
 ## Early design principles
 

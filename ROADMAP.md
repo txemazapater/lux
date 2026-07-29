@@ -164,7 +164,7 @@ Status: **in progress** (6A–6D implemented; expanded `form_demo` awaits visual
 | **6I** | Grid layout |
 | **6J** | Docking preparation (persistable split tree; no floating windows yet) |
 
-Do not implement Lantern-specific widgets (TreeView, Editor) in LUX Phase 6.
+Do not implement consumer-application widgets (e.g. TreeView, Editor for a future Lantern) in LUX Phase 6.
 
 ### Phase 6A — Layout core
 
@@ -180,7 +180,7 @@ Status: **complete**
 
 Status: **complete** (6B.1–6B.4 done)
 
-Process for every 6B subphase: clean compile, automated tests where useful, a dedicated visual demo, then manual review on real terminals. Prefer small commits. No docking and no Lantern-specific widgets in 6B.
+Process for every 6B subphase: clean compile, automated tests where useful, a dedicated visual demo, then manual review on real terminals. Prefer small commits. No docking and no consumer-application (Lantern) widgets in 6B.
 
 | Subphase | Scope | Status |
 |----------|--------|--------|
@@ -189,7 +189,7 @@ Process for every 6B subphase: clean compile, automated tests where useful, a de
 | **6B.3** | Split container with internal divider, generic mouse capture, drag, cursor integration, tests + interactive demo. | **done** |
 | **6B.4** | Interaction hardening and closure (escape cancel, capture loss, resize/orientation safety). | **done** |
 
-Do not implement docking or Lantern widgets in 6B.
+Do not implement docking or consumer-application widgets in 6B.
 
 ### Phase 6C — Mouse Semantics & ScrollView Foundation
 
@@ -285,9 +285,9 @@ Suggested source tree (when implementation begins): `src/appearance/`.
 - Performance benchmarks.
 - Compatibility matrix.
 
-## Phase 9 — Lantern readiness
+## Phase 9 — Consumer readiness (Lantern)
 
-Goal: provide the primitives required by the first substantial consumer.
+Goal: provide framework primitives that a substantial consumer application (provisionally **Lantern**) would need. Lantern is not part of LUX; **Lighthouse** is only the provisional commercial name of LUX itself.
 
 - Tree view.
 - Text viewport.
@@ -297,7 +297,7 @@ Goal: provide the primitives required by the first substantial consumer.
 - Split panes.
 - Background task/event integration.
 
-Git support, repository models and editor semantics belong to Lantern, not the LUX core.
+Git support, repository models and editor semantics belong to the consumer application (Lantern), not the LUX core.
 
 ## Current priority
 
@@ -310,4 +310,4 @@ Git support, repository models and editor semantics belong to Lantern, not the L
 
 **Recommended next implementation slice:** **S1 — Shared container & paint contracts** (stabilize client area / `ContentOffset`, thin in-memory appearance seam for glyphs/roles). Then **S2 — Range model**, then ProgressBar/Slider.
 
-Phase 5.2.1 deferred resize remains experimental. Do not pull Lantern-specific widgets into the LUX core.
+Phase 5.2.1 deferred resize remains experimental. Do not pull consumer-application (Lantern) widgets into the LUX core.

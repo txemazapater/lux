@@ -8,7 +8,7 @@ Accepted as architecture for **Phase 7 — Appearance System** (planned; not yet
 
 Phase 6 builds layout and common controls. Temporary concrete colors and glyph literals in controls work for demos but will not scale. Hardcoding appearance inside every widget couples product look to control code, blocks runtime theme changes, and mixes terminal capability concerns into UI logic.
 
-Appearance is therefore a separate top-level phase **after** Phase 6 completes, and before Developer usability (now Phase 8) and Lantern readiness (now Phase 9). Phase 6 subphase numbers (6A–6J) are unchanged.
+Appearance is therefore a separate top-level phase **after** Phase 6 completes, and before Developer usability (now Phase 8) and consumer readiness / Phase 9. Phase 6 subphase numbers (6A–6J) are unchanged.
 
 ## Decision
 
@@ -84,7 +84,7 @@ LUX does not select, install or persist terminal fonts. The emulator and user ow
 - JSON or TOML requiring an additional parser for v1
 - Hardcoded themes only (no external files)
 - Global mutable theme singleton
-- Application-specific (Lantern/Lighthouse) theming inside the LUX core
+- Application-specific (for example Lantern) theming inside the LUX core
 - Multi-level theme inheritance beyond a single optional built-in base in v1
 - Terminal font installation/selection, Nerd Font dependency, remote theme repositories, hot filesystem watchers
 
