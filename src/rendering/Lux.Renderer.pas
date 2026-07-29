@@ -61,8 +61,11 @@ type
 
     { Force the next Render to rewrite every cell (no terminal clear). }
     procedure Invalidate;
-    { Diff ASurface against the previous frame and write ANSI output. }
-    procedure Render(ASurface: TLuxSurface);
+    { Diff ASurface against the previous frame and write ANSI output.
+      AFlush controls whether the writer is flushed before return. }
+    procedure Render(ASurface: TLuxSurface; AFlush: Boolean = True);
+    { Sync tracked paint cursor after an external caret commit. }
+    procedure SyncExternalCursor(AX, AY: Integer; AVisible: Boolean);
 
     property CursorX: Integer read FCursorX;
     property CursorY: Integer read FCursorY;
@@ -360,7 +363,7 @@ begin
   FHasPrevious := True;
 end;
 
-procedure TLuxRenderer.Render(ASurface: TLuxSurface);
+procedure TLuxRenderer.Render(ASurface: TLuxSurface; AFlush: Boolean);
 var
   Full: Boolean;
 begin
@@ -383,7 +386,15 @@ begin
 
   CapturePrevious(ASurface);
   FInvalidated := False;
-  FWriter.Flush;
+  if AFlush then
+    FWriter.Flush;
+end;
+
+procedure TLuxRenderer.SyncExternalCursor(AX, AY: Integer; AVisible: Boolean);
+begin
+  FCursorX := AX;
+  FCursorY := AY;
+  FCursorVisible := AVisible;
 end;
 
 end.

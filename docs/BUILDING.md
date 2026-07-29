@@ -23,6 +23,7 @@ Targets for `tools\build.ps1`:
 | `eventloop` | `bin\eventloop_windows.exe` |
 | `controls-demo` | `bin\controls_demo_windows.exe` |
 | `stack-demo` | `bin\stack_demo_windows.exe` |
+| `cursor-demo` | `bin\cursor_demo_windows.exe` |
 | `input-inspector` | `bin\input_inspector_windows.exe` |
 | `all` | all of the above |
 
@@ -34,10 +35,11 @@ Run examples:
 .\bin\eventloop_windows.exe
 .\bin\controls_demo_windows.exe
 .\bin\stack_demo_windows.exe
+.\bin\cursor_demo_windows.exe
 .\bin\input_inspector_windows.exe
 ```
 
-`windows_demo`, `eventloop_windows`, `controls_demo_windows`, `stack_demo_windows` and `input_inspector_windows` require an interactive console. Optional integration:
+`windows_demo`, `eventloop_windows`, `controls_demo_windows`, `stack_demo_windows`, `cursor_demo_windows` and `input_inspector_windows` require an interactive console. Optional integration:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\test_windows_integration.ps1
@@ -55,6 +57,7 @@ chmod +x tools/*.sh
 ./bin/eventloop_unix
 ./bin/controls_demo_unix
 ./bin/stack_demo_unix
+./bin/cursor_demo_unix
 ```
 
 Targets for `tools/build.sh`:
@@ -68,9 +71,10 @@ Targets for `tools/build.sh`:
 | `eventloop` | `bin/eventloop_unix` |
 | `controls-demo` | `bin/controls_demo_unix` |
 | `stack-demo` | `bin/stack_demo_unix` |
+| `cursor-demo` | `bin/cursor_demo_unix` |
 | `all` | all of the above |
 
-`unix_demo`, `eventloop_unix`, `controls_demo_unix` and `stack_demo_unix` require a TTY. Optional integration:
+`unix_demo`, `eventloop_unix`, `controls_demo_unix`, `stack_demo_unix` and `cursor_demo_unix` require a TTY. Optional integration:
 
 ```bash
 ./tools/test_unix_integration.sh

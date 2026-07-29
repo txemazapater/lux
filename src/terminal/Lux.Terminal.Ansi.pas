@@ -17,6 +17,8 @@ function LuxAnsiCursorMoveTo(ARow1Based, AColumn1Based: Integer): RawByteString;
 function LuxAnsiCursorHome: RawByteString;
 function LuxAnsiHideCursor: RawByteString;
 function LuxAnsiShowCursor: RawByteString;
+{ DECSCUSR: AStyle 0..6 (0/1 blink block, 2 steady block, 3/4 underline, 5/6 bar). }
+function LuxAnsiCursorStyle(AStyle: Integer): RawByteString;
 
 function LuxAnsiResetAttributes: RawByteString;
 function LuxAnsiFgDefault: RawByteString;
@@ -70,6 +72,15 @@ end;
 function LuxAnsiShowCursor: RawByteString;
 begin
   Result := LuxAnsiCSI('?25h');
+end;
+
+function LuxAnsiCursorStyle(AStyle: Integer): RawByteString;
+begin
+  if AStyle < 0 then
+    AStyle := 0;
+  if AStyle > 6 then
+    AStyle := 6;
+  Result := LuxAnsiCSI(RawByteString(IntToStr(AStyle)) + ' q');
 end;
 
 function LuxAnsiResetAttributes: RawByteString;

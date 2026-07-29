@@ -178,14 +178,14 @@ Status: **complete**
 
 ### Phase 6B — Stack, cursor, split, capture (incremental)
 
-Status: **in progress** (start at 6B.1)
+Status: **in progress** (6B.1 done; 6B.2 next)
 
 Process for every 6B subphase: clean compile, automated tests where useful, a dedicated visual demo, then manual review on real terminals. Prefer small commits. No docking and no Lantern-specific widgets in 6B.
 
 | Subphase | Scope | Status |
 |----------|--------|--------|
-| **6B.1** | `TLuxStackLayout`: all visible children share the same client area; existing z-order / BringToFront / SendToBack; tests + overlay demo. No new interaction. | **done (pending visual review)** |
-| **6B.2** | Portable cursor infrastructure (controls request logical cursor; app/backend commits; capability-tolerant). | pending |
+| **6B.1** | `TLuxStackLayout`: all visible children share the same client area; existing z-order / BringToFront / SendToBack; tests + overlay demo. No new interaction. | **done** |
+| **6B.2** | Portable cursor infrastructure (controls request logical cursor; app/backend commits; capability-tolerant). | **done (pending visual review)** |
 | **6B.3** | Static split layout (H/V, ratio, thickness, mins, nesting). Geometry only; no dragging. | pending |
 | **6B.4** | Minimal mouse capture (generic; auto-release on hide/disable/destroy/quit). | pending |
 | **6B.5** | Interactive splitter (hover, focus, drag, keyboard, capture, cursor ownership). | pending |
@@ -215,4 +215,4 @@ Git support, repository models and editor semantics belong to Lantern, not the L
 
 ## Current priority
 
-Phase 6A is complete. Continue with **Phase 6B.1** (Stack Layout) only; do not start 6B.2+ until 6B.1 has compile/tests/demo and maintainer visual sign-off. Phase 5.2.1 deferred resize remains experimental. Do not pull Lantern-specific widgets into the LUX core.
+Phase **6B.1** is complete (visual OK). Continue with **Phase 6B.2** (logical cursor manager). Do not start 6B.3+ until 6B.2 has tests, demo, and maintainer visual sign-off. Phase 5.2.1 deferred resize remains experimental. Do not pull Lantern-specific widgets into the LUX core.

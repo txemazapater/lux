@@ -1,6 +1,6 @@
 # Build LUX targets with Free Pascal (Windows host).
 param(
-    [ValidateSet('hello', 'tests', 'windows-demo', 'windows-tests', 'eventloop', 'controls-demo', 'stack-demo', 'input-inspector', 'all')]
+    [ValidateSet('hello', 'tests', 'windows-demo', 'windows-tests', 'eventloop', 'controls-demo', 'stack-demo', 'cursor-demo', 'input-inspector', 'all')]
     [string]$Target = 'hello',
     [string]$Fpc = $env:FPC
 )
@@ -41,6 +41,9 @@ switch ($Target) {
     'stack-demo' {
         Build-One (Join-Path $Root 'examples\stack_demo\stack_demo_windows.pas') 'stack_demo_windows.exe' $windows
     }
+    'cursor-demo' {
+        Build-One (Join-Path $Root 'examples\cursor_demo\cursor_demo_windows.pas') 'cursor_demo_windows.exe' $windows
+    }
     'input-inspector' {
         Build-One (Join-Path $Root 'examples\input_inspector\input_inspector_windows.pas') 'input_inspector_windows.exe' $windows
     }
@@ -52,6 +55,7 @@ switch ($Target) {
         Build-One (Join-Path $Root 'examples\eventloop\eventloop_windows.pas') 'eventloop_windows.exe' $windows
         Build-One (Join-Path $Root 'examples\controls_demo\controls_demo_windows.pas') 'controls_demo_windows.exe' $windows
         Build-One (Join-Path $Root 'examples\stack_demo\stack_demo_windows.pas') 'stack_demo_windows.exe' $windows
+        Build-One (Join-Path $Root 'examples\cursor_demo\cursor_demo_windows.pas') 'cursor_demo_windows.exe' $windows
         Build-One (Join-Path $Root 'examples\input_inspector\input_inspector_windows.pas') 'input_inspector_windows.exe' $windows
     }
 }

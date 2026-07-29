@@ -30,6 +30,7 @@ uses
   Lux.Layout.Vertical,
   Lux.Layout.Horizontal,
   Lux.Layout.Stack,
+  Lux.Cursor,
   Lux.TestHarness;
 
 type
@@ -263,6 +264,7 @@ begin
   LuxCheckEqualRaw(#27'[2J', LuxAnsiClearScreen, 'clear screen');
   LuxCheckEqualRaw(#27'[0K', LuxAnsiEraseToEndOfLine, 'erase to end of line');
   LuxCheckEqualRaw(#27'[0J', LuxAnsiEraseToEndOfScreen, 'erase to end of screen');
+  LuxCheckEqualRaw(#27'[2 q', LuxAnsiCursorStyle(2), 'cursor style steady block');
 end;
 
 procedure TestMemoryWriter;
@@ -1179,6 +1181,59 @@ begin
   end;
 end;
 
+procedure TestCursorManager;
+var
+  Cur: TLuxCursorManager;
+  Mem: TLuxMemoryTerminalWriter;
+  W: ILuxTerminalWriter;
+begin
+  LuxSection('Lux.Cursor');
+  Cur := TLuxCursorManager.Create;
+  Mem := TLuxMemoryTerminalWriter.Create;
+  W := Mem;
+  try
+    Cur.Capabilities := LuxCursorCapsBasic;
+    LuxCheck(not Cur.Requested.Active, 'starts inactive');
+    Cur.Request(3, 5, True, lcsBar, True);
+    LuxCheck(Cur.Requested.Active, 'request active');
+    LuxCheckEqualInt(3, Cur.Requested.X, 'request x');
+    LuxCheckEqualInt(5, Cur.Requested.Y, 'request y');
+    LuxCheck(Cur.Commit(W), 'first commit emits');
+    LuxCheck(Cur.Committed.Visible, 'committed visible');
+    LuxCheck(Mem.ContainsRaw(LuxAnsiShowCursor), 'show cursor emitted');
+    LuxCheck(Mem.ContainsRaw(LuxAnsiCursorMoveTo(6, 4)), 'move 1-based row/col');
+    LuxCheck(not Mem.ContainsRaw(LuxAnsiCursorStyle(5)), 'basic caps skip shape');
+
+    Mem.Clear;
+    LuxCheck(not Cur.Commit(W), 'unchanged commit is silent');
+
+    Cur.MarkPaintDirtied;
+    LuxCheck(Cur.Commit(W), 'paint dirty forces re-commit');
+    LuxCheck(Mem.ContainsRaw(LuxAnsiShowCursor), 're-show after paint');
+
+    Mem.Clear;
+    Cur.Capabilities := LuxCursorCapsFull;
+    Cur.Request(1, 1, True, lcsUnderline, False);
+    LuxCheck(Cur.Commit(W), 'full caps commit');
+    LuxCheck(Mem.ContainsRaw(LuxAnsiCursorStyle(4)), 'steady underline style');
+
+    Mem.Clear;
+    Cur.ClearRequest;
+    LuxCheck(Cur.Commit(W), 'clear emits hide');
+    LuxCheck(Mem.ContainsRaw(LuxAnsiHideCursor), 'hide after clear');
+    LuxCheck(not Cur.Committed.Visible, 'committed hidden');
+
+    Cur.Capabilities := LuxCursorCapsNone;
+    Mem.Clear;
+    Cur.Request(0, 0, True);
+    LuxCheck(Cur.Commit(W), 'none caps still reports commit');
+    LuxCheckEqualInt(0, Mem.Length, 'none caps writes nothing');
+  finally
+    Cur.Free;
+    W := nil;
+  end;
+end;
+
 begin
   WriteLn('LUX portable tests');
   TestVersion;
@@ -1196,6 +1251,7 @@ begin
   TestControlFocus;
   TestLayoutEngine;
   TestStackLayout;
+  TestCursorManager;
   TestControlRenderingAndEvents;
   TestControlKeyboardRouting;
   Halt(LuxTestExitCode);

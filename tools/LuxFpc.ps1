@@ -51,6 +51,7 @@ function Get-LuxWindowsUnitPaths {
         (Join-Path $Root 'examples\eventloop'),
         (Join-Path $Root 'examples\controls_demo'),
         (Join-Path $Root 'examples\stack_demo'),
+        (Join-Path $Root 'examples\cursor_demo'),
         (Join-Path $Root 'examples\input_inspector')
     )
 }

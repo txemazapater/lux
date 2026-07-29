@@ -4,34 +4,33 @@ Last updated: 2026-07-29
 
 ## Current phase
 
-**Phase 6B.1 — Stack Layout** — implemented; awaiting maintainer visual sign-off
+**Phase 6B.2 — Cursor infrastructure** — implemented; awaiting maintainer visual sign-off
 
-Phases 0–5, 5.1, 5.2 and **6A** are complete. Phase 5.2.1 deferred resize remains experimental. Phase 6B continues as 6B.1–6B.5 (see ROADMAP).
+Phases 0–5, 5.1, 5.2, 6A and **6B.1** are complete. Phase 5.2.1 deferred resize remains experimental.
 
-## Phase 6B.1 — Stack Layout
+## Phase 6B.2 — Logical cursor
 
-- `TLuxStackLayout` in `src/layouts/Lux.Layout.Stack.pas`
-- Portable tests for shared bounds + BringToFront hit-test
-- Demo: `examples/stack_demo/` (`stack_demo_windows` / `stack_demo_unix`)
-- ADR 0008 updated with stack note
+- `Lux.Cursor` / `TLuxCursorManager` (request vs commit, capabilities)
+- Wired through `TLuxApplication.Cursor` after each paint (single flush)
+- ADR: `docs/adr/0009-logical-cursor-manager.md`
+- Demo: `examples/cursor_demo/`
 
 ## Verified
 
 | Item | Result |
 |------|--------|
 | Host (dev) | Windows x86_64 FPC 3.2.2 |
-| Portable tests | **287 passed** (includes stack) |
-| `stack_demo_windows` | builds |
-| Visual review | pending maintainers on real terminals |
+| Portable tests | **307 passed** |
+| `cursor_demo_windows` | builds |
+| Visual review | pending maintainers |
 
 ## Commands
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Target all
 powershell -ExecutionPolicy Bypass -File tools\test.ps1
-.\bin\stack_demo_windows.exe
+.\bin\cursor_demo_windows.exe
 ```
 
 ## Next
 
-Maintainer visual review of stack overlay / z-order. Then **6B.2** (cursor infrastructure).
+Maintainer visual review of caret positioning/shape. Then **6B.3** static split layout.

@@ -16,7 +16,8 @@ uses
   Lux.Timers,
   Lux.Surface,
   Lux.Renderer,
-  Lux.Terminal.Writer;
+  Lux.Terminal.Writer,
+  Lux.Cursor;
 
 const
   { Settle delay before committing an observed terminal size (Phase 5.2.1).
@@ -51,6 +52,7 @@ type
     FTimers: TLuxTimerScheduler;
     FSurface: TLuxSurface;
     FRenderer: TLuxRenderer;
+    FCursor: TLuxCursorManager;
     FQuit: Boolean;
     FNeedsPaint: Boolean;
     FWidth: Integer;
@@ -92,6 +94,7 @@ type
 
     property Surface: TLuxSurface read FSurface;
     property Renderer: TLuxRenderer read FRenderer;
+    property Cursor: TLuxCursorManager read FCursor;
     property Queue: TLuxEventQueue read FQueue;
     property Timers: TLuxTimerScheduler read FTimers;
     property Width: Integer read FWidth;
@@ -126,6 +129,8 @@ begin
   FTimers := TLuxTimerScheduler.Create(FClock);
   FSurface := TLuxSurface.Create(AWidth, AHeight);
   FRenderer := TLuxRenderer.Create(AWriter);
+  FCursor := TLuxCursorManager.Create;
+  FCursor.Capabilities := LuxCursorCapsBasic;
   FWidth := AWidth;
   FHeight := AHeight;
   FQuit := False;
@@ -138,6 +143,7 @@ end;
 
 destructor TLuxApplication.Destroy;
 begin
+  FreeAndNil(FCursor);
   FreeAndNil(FRenderer);
   FreeAndNil(FSurface);
   FreeAndNil(FTimers);
@@ -359,13 +365,32 @@ begin
 end;
 
 procedure TLuxApplication.PaintIfNeeded;
+var
+  C: TLuxCursorState;
+  DidWork: Boolean;
 begin
-  if FQuit or (not FNeedsPaint) or FResizePending then
+  if FQuit or FResizePending then
     Exit;
 
-  RenderContent(FSurface);
-  FRenderer.Render(FSurface);
-  FNeedsPaint := False;
+  DidWork := False;
+  if FNeedsPaint then
+  begin
+    RenderContent(FSurface);
+    FRenderer.Render(FSurface, False);
+    FCursor.MarkPaintDirtied;
+    FNeedsPaint := False;
+    DidWork := True;
+  end;
+
+  if FCursor.Commit(FWriter) then
+  begin
+    C := FCursor.Committed;
+    FRenderer.SyncExternalCursor(C.X, C.Y, C.Visible);
+    DidWork := True;
+  end;
+
+  if DidWork then
+    FWriter.Flush;
 end;
 
 procedure TLuxApplication.ProcessPending;
