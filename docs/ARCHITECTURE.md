@@ -84,9 +84,10 @@ Portable controls live under `src/controls` and must not reference platform unit
 - Coordinates are local; mouse hit-testing uses root coordinates then translates to local.
 - `TLuxFocusManager` holds one focused control; Tab / Shift+Tab walk tree order.
 - `TLuxControlApplication` hosts `TLuxRootControl`, routes input and renders the tree.
-- Phase 5 widgets: panel (optional single border), label, button.
+- Phase 5 widgets: panel (optional single border), label, button; Phase 6D adds checkbox and radio button.
 - Phase 6A: layout boxes under `src/layouts/` assign child `Bounds` from min/preferred/expand hints (`docs/adr/0008-layout-model.md`). Absolute coordinates remain valid for Expand=0 children.
-- Invalidation is full-frame. Mouse capture is out of scope until a later Phase 6 subphase.
+- Invalidation is full-frame. Mouse capture and the semantic mouse dispatcher are in place (Phase 6B.3 / 6C).
+- **Appearance System (Phase 7, planned):** semantic color roles, glyph sets, theme metrics and `.luxtheme` files after Phase 6 completes (`docs/adr/0013-appearance-themes-glyphs-config.md`). Controls should not grow new hardcoded theme policy before then.
 - Platform input backends are validated with synthetic translation tests and a small interactive inspector on the real host (`examples/input_inspector/`). Windows stdin uses Win32 `INPUT_RECORD` mode without `ENABLE_VIRTUAL_TERMINAL_INPUT` (see `docs/adr/0002-windows-terminal-session.md`).
 
 ## Application loop

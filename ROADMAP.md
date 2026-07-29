@@ -147,15 +147,15 @@ Status: **experimental / pending manual verification**
 
 ## Phase 6 - Layout and common controls
 
-Status: **in progress** (6A complete; later subphases not started)
+Status: **in progress** (6A–6D complete with visual review; 6E–6J and deferred form controls remain)
 
 ### Subphase plan
 
 | Subphase | Scope |
 |----------|--------|
 | **6A** | Layout engine + Vertical/Horizontal (padding, spacing, min/preferred, expand). ADR 0008. **Done.** |
-| **6B** | Stack + Splitter via subphases **6B.1–6B.5** (below). In progress. |
-| **6C** | ScrollView + scrollbars (wheel / PageUp/Down / Home/End) |
+| **6B** | Stack + Splitter via subphases **6B.1–6B.4**. **Done.** |
+| **6C** | Mouse semantics + ScrollView foundation. **Done.** |
 | **6D** | Form controls: CheckBox, RadioButton, Label (**done**); Toggle, Separator, GroupBox deferred |
 | **6E** | ProgressBar, Slider |
 | **6F** | Toolbar + StatusBar |
@@ -210,7 +210,7 @@ Deferred: visual scrollbar controls, kinetic scrolling, virtualization, drag-and
 
 ### Phase 6D — Label, CheckBox, RadioButton
 
-Status: **complete** (awaiting visual review)
+Status: **complete** (visual review passed)
 
 - `TLuxLabel` preferred width/height derived from Unicode text.
 - `TLuxCheckBox`: Space + semantic click toggle; disabled inert.
@@ -222,7 +222,49 @@ Status: **complete** (awaiting visual review)
 
 Deferred in broader 6D table: Toggle, Separator, GroupBox.
 
-## Phase 7 - Developer usability
+## Phase 7 — Appearance System
+
+Status: **planned** (not started)
+
+Goal: create a portable, semantic and application-independent appearance system for LUX.
+
+Controls must express visual intent through semantic roles and control states instead of embedding concrete colors, glyphs or platform-specific appearance decisions.
+
+The appearance system must support:
+
+- semantic color roles;
+- reusable glyph sets;
+- shared visual metrics;
+- application-level active themes;
+- external theme files (`.luxtheme`, UTF-8 INI — not CSS);
+- built-in fallback themes (`LuxDark`, `LuxLight`, `LuxMonochrome`);
+- runtime theme changes;
+- portable configuration lookup (Windows APPDATA, Unix XDG, portable mode — no Registry);
+- graceful degradation according to terminal color capabilities.
+
+Principles (formalized in `docs/adr/0013-appearance-themes-glyphs-config.md`):
+
+- Semantic roles (`Background`, `Surface`, `Text`, `Accent`, `Focus`, …) instead of hardcoded colors.
+- Control visual state (`Normal`, `Hovered`, `Focused`, `Pressed`, `Selected`, `Disabled`) is separate from color lookup — no CSS selector engine.
+- Glyphs (checkbox/radio marks, arrows, borders, …) live in theme glyph sets (Unicode and ASCII-compatible).
+- Metrics (padding cells, indicator spacing, focus-marker width) are appearance resources; layout remains owned by `src/layouts/`.
+- LUX does not select or install terminal fonts.
+
+### Subphases
+
+| Subphase | Scope |
+|----------|--------|
+| **7A** | Appearance model: roles, states, glyph sets, metrics, theme object, built-in default — in-memory only. |
+| **7B** | Theme integration: application / paint context, control migration, runtime switch between built-ins. |
+| **7C** | External `.luxtheme` loader: UTF-8 INI, validation, single base inheritance, strict/fallback modes. |
+| **7D** | Portable configuration discovery: APPDATA, XDG, portable mode, search precedence. |
+| **7E** | Acceptance theme demo + CI wiring + closure. |
+
+Suggested source tree (when implementation begins): `src/appearance/`.
+
+**Sequencing:** finish remaining Phase 6 subphases (6E–6J and deferred 6D controls) before starting Phase 7 implementation.
+
+## Phase 8 — Developer usability
 
 - Package distribution strategy.
 - API reference generation.
@@ -231,7 +273,7 @@ Deferred in broader 6D table: Toggle, Separator, GroupBox.
 - Performance benchmarks.
 - Compatibility matrix.
 
-## Phase 8 - Lantern readiness
+## Phase 9 — Lantern readiness
 
 Goal: provide the primitives required by the first substantial consumer.
 
@@ -247,4 +289,4 @@ Git support, repository models and editor semantics belong to Lantern, not the L
 
 ## Current priority
 
-Phases **6B.1–6B.4**, **6C**, and **6D** (Label/CheckBox/RadioButton) are complete pending visual review of `form_demo`. Phase 5.2.1 deferred resize remains experimental. Next after 6D visual sign-off: continue form controls (Toggle/Separator/GroupBox) or **6E**. Do not pull Lantern-specific widgets into the LUX core.
+Phases **6B.1–6B.4**, **6C**, and **6D** are complete with visual review passed. Continue the remaining Phase 6 roadmap (Toggle/Separator/GroupBox where assigned, then **6E** ProgressBar/Slider and later 6F–6J). **Phase 7 — Appearance System** follows completion of Phase 6 (see ADR 0013). Phase 5.2.1 deferred resize remains experimental. Do not pull Lantern-specific widgets into the LUX core.

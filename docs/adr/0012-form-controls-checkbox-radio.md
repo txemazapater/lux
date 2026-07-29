@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (Phase 6D)
+Accepted (Phase 6D — visual review passed)
 
 ## Context
 
