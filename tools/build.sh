@@ -48,6 +48,9 @@ case "$TARGET" in
   split-demo)
     build_one "$ROOT/examples/split_demo/split_demo_unix.pas" split_demo_unix "${UNIX[@]}"
     ;;
+  scroll-demo)
+    build_one "$ROOT/examples/scroll_demo/scroll_demo_unix.pas" scroll_demo_unix "${UNIX[@]}"
+    ;;
   all)
     build_one "$ROOT/examples/hello/hello_lux.pas" hello_lux "${PORTABLE[@]}"
     build_one "$ROOT/tests/lux_tests.pas" lux_tests "${PORTABLE[@]}"
@@ -58,9 +61,10 @@ case "$TARGET" in
     build_one "$ROOT/examples/stack_demo/stack_demo_unix.pas" stack_demo_unix "${UNIX[@]}"
     build_one "$ROOT/examples/cursor_demo/cursor_demo_unix.pas" cursor_demo_unix "${UNIX[@]}"
     build_one "$ROOT/examples/split_demo/split_demo_unix.pas" split_demo_unix "${UNIX[@]}"
+    build_one "$ROOT/examples/scroll_demo/scroll_demo_unix.pas" scroll_demo_unix "${UNIX[@]}"
     ;;
   *)
-    echo "Usage: $0 [hello|tests|unix-demo|unix-tests|eventloop|controls-demo|stack-demo|cursor-demo|split-demo|all]" >&2
+    echo "Usage: $0 [hello|tests|unix-demo|unix-tests|eventloop|controls-demo|stack-demo|cursor-demo|split-demo|scroll-demo|all]" >&2
     exit 2
     ;;
 esac
